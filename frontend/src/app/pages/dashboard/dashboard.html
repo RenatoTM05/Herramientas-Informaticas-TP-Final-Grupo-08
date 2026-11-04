@@ -1,0 +1,169 @@
+ <div class="container-fluid p-4">
+  <h1 class="text-info mb-4">📊 Dashboard Administrativo</h1>
+
+  <!--Tarjetas de estadísticas -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card bg-dark text-white border-info">
+        <div class="card-body">
+          <h6 class="card-subtitle text-info">Total Usuarios</h6>
+          <h2 class="card-title">{{ estadisticas.totalUsuarios }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-dark text-white border-success">
+        <div class="card-body">
+          <h6 class="card-subtitle text-success">Nuevos (7 días)</h6>
+          <h2 class="card-title">{{ estadisticas.usuariosNuevos }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-dark text-white border-warning">
+        <div class="card-body">
+          <h6 class="card-subtitle text-warning">Logins Hoy</h6>
+          <h2 class="card-title">{{ estadisticas.loginsHoy }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-dark text-white border-danger">
+        <div class="card-body">
+          <h6 class="card-subtitle text-danger">Total Acciones</h6>
+          <h2 class="card-title">{{ estadisticas.totalAcciones }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 📈 Gráficos -->
+  <div class="row g-3 mb-4">
+    <!-- Gráfico de línea -->
+    <div class="col-md-6">
+      <div class="card bg-dark text-white">
+        <div class="card-header bg-info text-dark fw-bold">📈 Logins por Día</div>
+        <div class="card-body">
+          <canvas baseChart 
+            [data]="configGraficoLinea" 
+            [options]="opcionesDeLinea"
+            type="line">
+          </canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráfico de torta -->
+    <div class="col-md-6">
+      <div class="card bg-dark text-white">
+        <div class="card-header bg-warning text-dark fw-bold">🍩 Acciones por Tipo</div>
+        <div class="card-body">
+          <canvas baseChart 
+            [data]="configGraficoTorta" 
+            [options]="opcionesTorta"
+            type="pie">
+          </canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <!-- Gráfico de barras -->
+    <div class="col-md-6">
+      <div class="card bg-dark text-white">
+        <div class="card-header bg-success text-dark fw-bold">📊 Usuarios Más Activos</div>
+        <div class="card-body">
+          <canvas baseChart 
+            [data]="configGraficoBarras" 
+            [options]="opcionesBarras"
+            type="bar">
+          </canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Juegos más buscados -->
+    <div class="col-md-6">
+      <div class="card bg-dark text-white">
+        <div class="card-header bg-danger text-dark fw-bold">🎮 Juegos Más Buscados</div>
+        <div class="card-body">
+          <div *ngFor="let juego of juegosBuscados" class="d-flex justify-content-between border-bottom py-2">
+            <span>{{ juego.resultado || 'Sin término' }}</span>
+            <span class="badge bg-info">{{ juego.cantidad }} búsquedas</span>
+          </div>
+          <div *ngIf="juegosBuscados.length === 0" class="text-center text-muted py-3">
+            No hay datos de búsquedas aún
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DataTable de Auditoría -->
+  <div class="card bg-dark text-white">
+    <div class="card-header bg-primary text-dark fw-bold d-flex justify-content-between align-items-center">
+      <span>Historial de Auditoría</span>
+      <div>
+        <button class="btn btn-success btn-sm me-2" (click)="exportarExcel()">
+            <i class="bi bi-file-earmarck-excel"></i>
+        </button>
+        <button class="btn btn-danger btn-sm" (click)="exportarPDF()">
+            <i class="bi bi-file-earmark-pdf"></i>
+        </button>
+      </div>
+    </div>
+    <div class="card-body">
+      <!-- Buscador -->
+      <div class="row mb-3">
+        <div class="col-md-4">
+          <input type="text" class="form-control bg-secondary text-white" 
+            placeholder="🔍 Buscar..." [(ngModel)]="terminoBusqueda" (keyup.enter)="buscarRegistros()">
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-info" (click)="buscarRegistros()">Buscar</button>
+        </div>
+      </div>
+
+      <!-- Tabla -->
+      <div class="table-responsive">
+        <table class="table table-dark table-hover">
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Acción</th>
+              <th>Método</th>
+              <th>Ruta</th>
+              <th>Fecha</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of registrosAuditoria">
+              <td>{{ item.usuario }}</td>
+              <td><span class="badge bg-info">{{ traducirAccion(item.accion) }}</span></td>
+              <td><span class="badge bg-secondary">{{ item.metodo }}</span></td>
+              <td>{{ item.ruta }}</td>
+              <td>{{ item.fecha | date:'short' }}</td>
+              <td>
+                <span class="badge" [class.bg-success]="item.statusCode < 400" [class.bg-danger]="item.statusCode >= 400">
+                  {{ item.statusCode }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Paginación -->
+      <div class="d-flex justify-content-between align-items-center">
+        <span>Mostrando {{ registrosAuditoria.length }} de {{ totalRegistros }}</span>
+        <div>
+          <button class="btn btn-outline-info btn-sm" [disabled]="paginaActual <= 1" (click)="paginaAnterior()">Anterior</button>
+          <span class="mx-2">Página {{ paginaActual }} de {{ totalPaginas }}</span>
+          <button class="btn btn-outline-info btn-sm" [disabled]="paginaActual >= totalPaginas" (click)="paginaSiguiente()">Siguiente</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

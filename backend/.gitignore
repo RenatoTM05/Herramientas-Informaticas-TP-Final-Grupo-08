@@ -1,0 +1,15 @@
+# Dependencias de Node
+node_modules/
+
+# Variables de entorno (Contraseñas y API Keys)
+.env
+.env.*
+
+# Archivos de logs y reportes de error
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos basura del sistema operativo (Mac/Windows)
+.DS_Store
+Thumbs.db

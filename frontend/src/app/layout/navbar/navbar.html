@@ -1,0 +1,105 @@
+<nav class="navbar navbar-expand-lg navbar-dark custom-navbar py-2">
+  <div class="container-fluid container">
+    
+    <a class="navbar-brand d-flex align-items-center gap-2" routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
+      <span class="border border-2 rounded px-2 py-1 fw-bold fs-5">G10</span>
+    </a>
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarNav">
+      
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0 fw-medium">
+        <li class="nav-item">
+          <a class="nav-link text-uppercase" routerLink="JuegoDetalle" routerLinkActive="active">Catalogo</a>     
+        </li>
+        
+        <li class="nav-item" *ngIf="usuarioAutenticado && (usuarioActual.rol === 'critico' || usuarioActual.rol === 'admin')">
+          <a class="nav-link text-uppercase text-info" routerLink="/Tienda" routerLinkActive="active">Tienda</a>
+        </li>
+        <li class="nav-item" *ngIf="usuarioAutenticado && usuarioActual.rol === 'admin'">
+          <a class="nav-link text-uppercase text-success" routerLink="/Admin" routerLinkActive="active">Panel Admin</a>
+        </li>
+      </ul>
+
+      <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0">
+        
+        <div class="position-relative" *ngIf="router.url !== '/'">
+          
+          <div class="input-group input-group-sm custom-search-group">
+            <span (click)="irAResultados(inputNavBuscador.value)" class="input-group-text bg-transparent text-light border-secondary" style="cursor: pointer;">
+              <i class="bi bi-search"></i>
+            </span>
+            <input #inputNavBuscador 
+              (keyup.enter)="irAResultados(inputNavBuscador.value)"
+              (keyup)="buscarSugerencias(inputNavBuscador.value)"
+              type="text" 
+              class="form-control bg-transparent text-light border-secondary custom-search" 
+              placeholder="Buscar juego...">
+          </div>
+
+          <ul *ngIf="mostrarSugerencias && sugerenciasBusqueda.length > 0" 
+              class="list-group position-absolute start-0 mt-1 shadow-lg" 
+              style="z-index: 1100; text-align: left; width: 280px; max-height: 400px; overflow-y: auto;">
+            
+            <li *ngFor="let sugerencia of sugerenciasBusqueda" 
+                class="list-group-item list-group-item-action d-flex align-items-center p-2"
+                style="cursor: pointer; background-color: var(--bs-body-bg);"
+                (click)="seleccionarSugerencia(sugerencia); inputNavBuscador.value=''">
+              
+              <img [src]="sugerencia.imagen_portada || 'assets/placeholder.jpg'" width="30" height="40" class="me-2 rounded object-fit-cover" [alt]="sugerencia.titulo">
+              
+              <div class="d-flex flex-column w-100 style-text" style="font-size: 0.85rem;">
+                <span class="fw-bold text-truncate" style="max-width: 200px;">{{ sugerencia.titulo }}</span>
+                
+                <div class="d-flex justify-content-between align-items-center mt-1">
+                  <small class="text-muted" style="font-size: 0.7rem;">
+                    {{ sugerencia.generos ? (sugerencia.generos | slice:0:1).join('') : 'Gamer' }}
+                  </small>
+                  <div class="d-flex gap-1 text-secondary" style="font-size: 0.75rem;">
+                    <i *ngFor="let icono of obtenerIconosPlataformas(sugerencia.plataformas)" [class]="'bi ' + icono"></i>
+                  </div>
+                </div>
+              </div>
+              
+            </li>
+          </ul>
+
+        </div>
+        <button type="button" class="btn btn-link text-light fs-5 p-0 text-decoration-none" (click)="ModoOscuro()"> 
+          <i class="bi" [ngClass]="esModoOscuro ? 'bi-moon-fill' : 'bi-sun-fill'"></i>
+        </button>
+
+        <button *ngIf="!usuarioAutenticado" routerLink="/Login" class="btn btn-info text-white fw-bold px-4">
+          INICIAR SESIÓN
+        </button>
+
+        <div *ngIf="usuarioAutenticado" class="d-flex align-items-center gap-3">
+          
+          <div class="d-flex align-items-center gap-2">
+            <span *ngIf="usuarioActual.rol === 'critico'" 
+                  class="badge bg-warning text-dark border border-light" title="Usuario Destacado">
+              CRÍTICO
+            </span>
+            
+            <span *ngIf="usuarioActual.rol === 'admin'" 
+                  class="badge bg-success text-white border border-light shadow-sm" title="Administrador del Sistema">
+              ADMIN
+            </span>
+
+            <span class="text-white fw-bold">🎮 ¡Hola, {{ usuarioActual.nombre }}!</span>
+            <img [src]="usuarioActual.fotoPerfil" alt="Perfil" class="rounded-circle object-fit-cover border border-2 border-info" width="40" height="40" style="cursor: pointer;">
+          </div>
+
+          <button (click)="cerrarSesion()" class="btn btn-outline-danger btn-sm rounded-pill">
+            Cerrar Sesión
+          </button>
+          
+        </div>
+
+      </div>
+    </div>
+  </div>
+</nav>

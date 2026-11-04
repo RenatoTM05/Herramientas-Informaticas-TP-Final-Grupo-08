@@ -1,0 +1,166 @@
+/* CSS exclusivo para los bordes, colores, tamaños y sombras personalizadas */
+
+/* El brillo exterior y el degradado del borde */
+.custom-neon-border {
+  background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
+  box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
+  transition: all 0.3s ease-in-out;
+}
+
+.custom-neon-border:focus-within {
+  box-shadow: 0 0 30px rgba(0, 210, 255, 0.8);
+  transform: scale(1.02);
+}
+
+/* Sombra del título */
+.custom-text-shadow {
+  text-shadow: 0 0 15px rgba(0, 210, 255, 0.6);
+  letter-spacing: 1px;
+}
+
+/* Quitar el borde azul por defecto que le pone Bootstrap al hacer clic */
+.custom-input:focus {
+  box-shadow: none !important;
+}
+
+/* Color personalizado al pasar el mouse por el botón */
+.custom-btn:hover {
+  background-color: #3a7bd5 !important;
+  color: #ffffff !important;
+}
+
+/* Altura controlada para las imágenes del carrusel */
+.custom-carousel-img {
+  height: 500px;
+  object-fit: contain; /* Esto hace que la imagen entre completa sin recortarse */
+  background-color: #121212; /* Fondo oscuro para rellenar los huecos laterales */
+}
+
+/* --- ESTILOS PARA LAS TARJETAS DEL CATÁLOGO --- */
+.custom-card-img {
+  height: 250px; /* Altura fija para que todas queden parejas */
+  object-fit: cover; /* Recorta los bordes sin deformar la imagen */
+  object-position: top; /* Prioriza mostrar la parte de arriba  */
+}
+.custom-premium-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.custom-premium-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.4) !important;
+}
+.filter-brightness {
+  filter: brightness(0.8);
+}
+.animate-pulse {
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+/* --- Efecto base normal --- */
+.custom-premium-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* --- MODO COMPACTO STICKY --- */
+.contenedor-premium-wrapper.is-sticky {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1050;
+  background: rgba(10, 15, 30, 0.95); /* Fondo azul noche ultra premium */
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  padding: 12px 4% !important;
+  box-shadow: 0 -10px 35px rgba(0, 0, 0, 0.8);
+  /* Animación más suave de entrada (0.5 segundos con frenado elegante) */
+  animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Ocultar elementos que molestan en modo barra compacta */
+.is-sticky .cabecera-premium,
+.is-sticky .img-premium,
+.is-sticky .descripcion-juego,
+.is-sticky .badge-early,
+.is-sticky .etiqueta-precio {
+  display: none !important;
+}
+
+/* Forzar que la fila use todo el ancho de la barra */
+.is-sticky .fila-premium-cards {
+  margin: 0 !important;
+  width: 100%;
+}
+
+/* Modificación de la tarjeta en modo barra */
+.is-sticky .custom-premium-card {
+  background: rgba(30, 41, 59, 0.7) !important;
+  border: 1px solid rgba(0, 212, 255, 0.3) !important;
+  height: auto !important;
+}
+
+/* ARREGLO DE ALINEACIÓN: Esto evita las superposiciones */
+.is-sticky .cuerpo-card {
+  padding: 8px 12px !important;
+  display: flex !important;
+  flex-direction: row !important; /* Alineación horizontal obligatoria */
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px;
+}
+
+/* Ajustes de textos en la barra flotante */
+.is-sticky .info-juego {
+  flex: 1;
+  min-width: 0; /* Permite que actúe el truncado de texto correctamente */
+}
+
+.is-sticky .titulo-juego {
+  font-size: 0.85rem !important;
+  color: #fff !important;
+  margin: 0 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Corta textos largos con "..." elegantemente */
+}
+
+/* Ajustes del bloque de precio y botón */
+.is-sticky .selector-pago-premium {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.is-sticky .contenedor-precio {
+  margin: 0 !important;
+}
+
+.is-sticky .precio-juego {
+  font-size: 0.9rem !important;
+  color: #0df0a6 !important; /* Verde neón para resaltar el monto */
+}
+
+/* Botón súper adaptado */
+.is-sticky .custom-premium-btn {
+  font-size: 0.7rem !important;
+  padding: 4px 12px !important;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+}
+
+/* Animación fluida amortiguada */
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+/* Cuando la barra esté pegada abajo, le da un aire al contenedor general 
+   para que se pueda hacer scroll hasta el último pixel sin tapar nada */
+.contenedor-premium-wrapper.is-sticky + * {
+  margin-bottom: 120px !important;
+}

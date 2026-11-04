@@ -1,0 +1,34 @@
+/* Color base oscuro y borde inferior violeta característico de IGDB */
+.custom-navbar {
+  background-color: #1e1e23 !important; /* Color base oscuro */
+  border-bottom: 3px solid #00d2ff; /* Borde inferior violeta */
+}
+
+/* Estilo del botón de Iniciar Sesión */
+.custom-btn-login {
+  background-color: #2ba6c2;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.custom-btn-login:hover {
+  background-color: #1c3883; /* Cambia de color al pasar el mouse */
+  color: #ffffff;
+  transform: scale(1.02);
+}
+
+/* Detalles para que el buscador chico quede prolijo */
+.custom-search-group {
+  max-width: 200px;
+}
+
+.custom-search::placeholder {
+  color: #a1a1aa;
+}
+
+.custom-search:focus {
+  box-shadow: none;
+  border-color: rgb(67, 3, 188) !important;
+}

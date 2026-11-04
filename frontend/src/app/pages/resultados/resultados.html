@@ -1,0 +1,59 @@
+<div class="container mt-5 mb-5 min-vh-100">
+  
+  <h3 class="mb-4 text-white fw-bold">
+    Resultados de la búsqueda: <span class="text-info">"{{ terminoBusqueda }}"</span>
+  </h3>
+
+  <div *ngIf="cargando" class="text-center my-5">
+    <div class="spinner-border text-info" role="status" style="width: 3rem; height: 3rem;">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+  </div>
+
+  <div *ngIf="!cargando && resultados.length === 0" class="alert bg-dark text-white border-secondary text-center fs-5 shadow-sm">
+    <i class="bi bi-emoji-frown me-2 text-warning"></i> No encontramos juegos que coincidan con <b>"{{ terminoBusqueda }}"</b>.
+  </div>
+
+  <div *ngIf="!cargando && resultados.length > 0" class="d-flex flex-column gap-2">
+    
+    <div *ngFor="let juego of resultados" 
+      class="card border-0 rounded-0 steam-row shadow-sm" 
+      (click)="verDetalle(juego.id)">
+      
+      <div class="row g-0 align-items-center h-100">
+        
+        <div class="col-auto h-100">
+          <img [src]="juego.imagen_portada || 'assets/placeholder.jpg'" 
+            class="steam-img object-fit-cover" 
+            [alt]="juego.titulo">
+        </div>
+        
+        <div class="col px-3 py-2 d-flex flex-column justify-content-between h-100">
+          <div>
+            <h5 class="fw-bold mb-1 steam-title text-truncate">{{ juego.titulo }}</h5>
+            
+            <div class="d-flex gap-2 text-secondary fs-6 mt-2">
+              <i *ngFor="let icono of obtenerIconosPlataformas(juego.plataformas)" [class]="'bi ' + icono"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-auto pe-4 text-end d-none d-md-block d-flex flex-column justify-content-center">
+          
+          <div class="text-secondary mb-2 text-uppercase" style="font-size: 0.80rem; letter-spacing: 0.5px;">
+            {{ juego.fecha_lanzamiento ? (juego.fecha_lanzamiento | date:'dd MMM yyyy') : 'Próximamente' }}
+          </div>
+          
+          <div class="d-flex gap-1 justify-content-end flex-wrap" style="max-width: 150px;">
+            <span class="badge bg-secondary bg-opacity-25 text-light border border-secondary" *ngFor="let genero of (juego.generos | slice:0:2)">
+              {{ genero }}
+            </span>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>

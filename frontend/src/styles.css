@@ -1,0 +1,6 @@
+/* You can add global styles to this file, and also import other style files */
+.logo-nav{
+height: 40px;      /* Controla la altura para que no deforme la barra */
+    width: auto;       /* El ancho se adapta automáticamente para no pixelarse */
+    object-fit: contain;
+}

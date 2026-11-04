@@ -1,0 +1,20 @@
+<div class="contenedor-exito d-flex align-items-center justify-content-center">
+  <div class="card-exito text-center shadow-lg p-5 border border-info bg-dark text-white">
+    <div class="icono-check mb-4 animate-bounce">
+      <span class="display-1 text-info">🎮</span>
+    </div>
+    
+    <h2 class="text-info fw-bold mb-3 title-neon">¡Pase Adquirido con Éxito!</h2>
+    <p class="text-muted mb-4 fs-5">El simulador ya identificó tu pago. Tu acceso anticipado está listo.</p>
+    
+    <div class="comprobante text-start p-3 bg-secondary bg-opacity-25 rounded mb-4 border border-secondary">
+      <div class="mb-2"><span class="text-info fw-bold">Comprobante MP:</span> #{{ paymentId }}</div>
+      <div class="mb-2"><span class="text-info fw-bold">Estado:</span> <span class="badge bg-success">Acreditado</span></div>
+      <div><span class="text-info fw-bold">Preferencia:</span> {{ preferenceId | slice:0:15 }}...</div>
+    </div>
+
+    <button (click)="volverAlHome()" class="btn btn-info text-dark fw-bold rounded-pill px-4 text-uppercase">
+      Volver a los Juegos
+    </button>
+  </div>
+</div>

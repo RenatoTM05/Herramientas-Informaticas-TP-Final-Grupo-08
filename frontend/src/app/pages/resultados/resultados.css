@@ -1,0 +1,24 @@
+/* Color de fondo base  */
+.steam-row {
+  background-color: rgba(22, 32, 45, 0.8);
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  height: 80px; /* Fija la altura de la fila */
+}
+
+/* Efecto Hover (mouse por encima) */
+.steam-row:hover {
+  background-color: rgba(42, 71, 94, 0.9);
+}
+
+/* Color del texto del título */
+.steam-title {
+  color: #c7d5e0;
+}
+
+/* Ajuste perfecto para la imagen */
+.steam-img {
+  width: 170px;
+  height: 100%;
+  object-position: center;
+}
