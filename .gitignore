@@ -12,3 +12,6 @@ node_modules/
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Archivo de contexto para la I.A
+context.md
