@@ -182,6 +182,8 @@ proyecto-final-grupo-08/
 ├── glpi/
 │   └── compose-glpi.yml               # Stack dockerizado para GLPI (Mesa de ayuda)
 ├── docs/
+│   ├── historias_usuario/             # Documentación individual de cada HU resuelta (un archivo .md por HU)
+│   ├── images/                         # Capturas de pantalla para incorporar a la documentación final
 │   ├── sprint_reviews/                # Minutas de fin de sprint y evidencias Scrum
 │   ├── glpi_tickets/                  # Evidencia y cierre de los 10 tickets de incidentes
 │   └── documentacion_tecnica_16_puntos.md # Borrador hacia el documento técnico unificado final
