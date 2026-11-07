@@ -17,7 +17,7 @@
 ### Criterios de Aceptación (según `context.md` e `informe-general.md`):
 1. **Frontend Multi-stage Build:**
    - Redactar un `Dockerfile` multi-stage para el Frontend:
-     - **Stage 1 (Compilación):** Entorno Node.js (20/22/24 Alpine) para resolver dependencias y compilar la aplicación Angular 21 con Angular CLI en modo producción (`ng build --configuration production`).
+     - **Stage 1 (Compilación):** Entorno Node.js (22 Alpine) para resolver dependencias y compilar la aplicación Angular 21 con Angular CLI en modo producción (`ng build --configuration production`).
      - **Stage 2 (Servidor Web):** Servidor ultraligero Nginx Alpine para servir los archivos estáticos generados y gestionar correctamente las rutas del cliente SPA (`try_files $uri $uri/ /index.html;`) con soporte de compresión gzip.
 2. **Backend Optimizado y Non-Root User:**
    - Redactar un `Dockerfile` optimizado para el Backend Node.js/Express 5.
@@ -32,7 +32,8 @@
    - Implementar `depends_on` con condiciones de salud (`service_healthy`) para garantizar que el Backend espere a que PostgreSQL esté 100% operativo antes de inicializar la sincronización de modelos con Sequelize, y que el Frontend dependa del Backend.
    - Definir healthchecks nativos para Backend y Frontend.
 5. **Cero Secretos y Variables Parametrizadas:**
-   - Parametrizar todas las credenciales y puertos mediante `.env.example` y variables de entorno externas sin secretos en el repositorio.
+   - Parametrizar todas las credenciales mediante `.env.example` con valores de referencia/dummy sin secretos expuestos en el repositorio.
+   - El servicio pgAdmin 4 correspondiente a la HU-05 queda documentado y referenciado como comentario para integrarse limpiamente al fusionar las ramas en `develop`.
 
 ---
 
@@ -52,21 +53,26 @@ flowchart TD
 
         subgraph DBNetwork["Red Aislada de Datos: gamer_db_network"]
             Postgres["PostgreSQL 16 Engine (gamer_postgres)\nPuerto Interno: 5432\nNamed Volume: gamer_pgdata"]
-            PGAdmin["pgAdmin 4 (gamer_pgadmin)\nPuerto Externo: 5050 / Interno: 80\nNamed Volume: gamer_pgadmin_data"]
+            PGAdminComment["pgAdmin 4 (HU-05)\nIntegrado en rama feature/docker-postgres"]
         end
     end
 
     Browser -->|HTTP 4200| Frontend
     Browser -->|API REST 3000| Backend
-    Browser -->|Web DBA 5050| PGAdmin
     Frontend -.->|Enrutamiento SPA| Frontend
     Backend -->|TCP 5432 / Sequelize| Postgres
-    PGAdmin -->|TCP 5432| Postgres
 ```
 
 ---
 
 ## 3. Implementación de los Dockerfiles
+
+Siguiendo la organización del monorepo definida en la Sección 4 de `informe-general.md`:
+* `backend/Dockerfile`
+* `backend/.dockerignore`
+* `frontend/Dockerfile`
+* `frontend/nginx.conf`
+* `frontend/.dockerignore`
 
 ### 3.1 Backend (`backend/Dockerfile`)
 ```dockerfile
@@ -215,18 +221,18 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-tpfinalbackend}
-      POSTGRES_USER: ${POSTGRES_USER:-gamer_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gamer_secret_password_2026}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
       TZ: ${TZ:-America/Argentina/Buenos_Aires}
     ports:
-      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
       - db-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gamer_admin} -d ${POSTGRES_DB:-tpfinalbackend}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-tpfinalbackend}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -238,27 +244,30 @@ services:
 
   # ---------------------------------------------------------------------------
   # HU-05 | pgAdmin4 - Cliente web de administración de base de datos
+  # NOTA DE MERGE: Este servicio corresponde a la HU-05 a cargo de otro compañero
+  # y ya se encuentra desarrollado en la rama 'feature/docker-postgres'.
+  # Al fusionar en 'develop', se unificará desde dicha rama.
   # ---------------------------------------------------------------------------
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: gamer_pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@gamer.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-gamer_admin_password_2026}
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
-      TZ: ${TZ:-America/Argentina/Buenos_Aires}
-    ports:
-      - "127.0.0.1:${PGADMIN_PORT:-5050}:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
-    networks:
-      - db-network
-    depends_on:
-      postgres:
-        condition: service_healthy
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: gamer_pgadmin
+  #   restart: unless-stopped
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+  #     PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+  #     PGADMIN_CONFIG_SERVER_MODE: "False"
+  #     PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+  #     TZ: ${TZ:-America/Argentina/Buenos_Aires}
+  #   ports:
+  #     - "127.0.0.1:${PGADMIN_PORT:-5050}:80"
+  #   volumes:
+  #     - pgadmin_data:/var/lib/pgadmin
+  #     - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+  #   networks:
+  #     - db-network
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
 
   # ---------------------------------------------------------------------------
   # HU-11 | Backend API (Node.js / Express 5) - Ejecución non-root optimizada
@@ -276,10 +285,10 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB:-tpfinalbackend}
-      DB_USER: ${POSTGRES_USER:-gamer_admin}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-gamer_secret_password_2026}
-      JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_token_for_gamer_social_2026}
-      SESSION_SECRET: ${SESSION_SECRET:-super_secret_session_key_gamer_app_2026}
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
@@ -337,8 +346,8 @@ services:
 volumes:
   pgdata:
     name: gamer_pgdata
-  pgadmin_data:
-    name: gamer_pgadmin_data
+  # pgadmin_data:
+  #   name: gamer_pgadmin_data  # HU-05
 
 networks:
   app-network:
@@ -353,23 +362,22 @@ networks:
 
 ## 5. Procedimiento de Ejecución y Validación
 
-1. **Configurar el entorno:**
+1. **Configurar el archivo local `.env` a partir de la plantilla:**
    ```powershell
    Copy-Item .env.example .env
    ```
-2. **Levantar todos los servicios coordinadamente:**
+   *Completar las variables locales con contraseñas seguras.*
+
+2. **Levantar los servicios:**
    ```powershell
    docker compose up -d --build
    ```
+
 3. **Verificar el estado de salud de los contenedores:**
    ```powershell
    docker compose ps
    ```
-   *Salida verificada:*
-   - `gamer_postgres`: `Up (healthy)`
-   - `gamer_backend`: `Up (healthy)`
-   - `gamer_frontend`: `Up (healthy)`
-   - `gamer_pgadmin`: `Up`
+
 4. **Verificar logs del backend y conexión exitosa a PostgreSQL:**
    ```powershell
    docker logs gamer_backend
@@ -380,19 +388,17 @@ networks:
    Tablas de PostgreSQL sincronizadas
    Servidor corriendo en el puerto 3000
    ```
+
 5. **Verificar acceso en navegador local:**
    - **Frontend Web:** `http://localhost:4200` (Responde HTTP 200)
    - **Backend API Docs:** `http://localhost:3000/api-docs/` (Responde HTTP 200)
-   - **pgAdmin 4:** `http://localhost:5050` (Responde HTTP 200)
 
 ---
 
 ## 6. Cumplimiento de Criterios de Aceptación y DoD
 
-- [x] **Dockerfile multi-stage para Frontend:** Stage 1 de compilación con Node.js y Angular CLI; Stage 2 ligero con Nginx Alpine y enrutamiento SPA. Tamaño final en disco de solo 27.3 MB.
+- [x] **Dockerfile multi-stage para Frontend:** Stage 1 de compilación con Node.js y Angular CLI; Stage 2 ligero con Nginx Alpine y enrutamiento SPA.
 - [x] **Dockerfile optimizado para Backend:** Base Node.js 22 Alpine, capas optimizadas, solo dependencias de producción y ejecutándose bajo usuario non-root (`node`).
-- [x] **Orquestación en Docker Compose:** Integración completa de Frontend, Backend, PostgreSQL y pgAdmin.
-- [x] **Segmentación de redes:** Redes `app-network` y `db-network` aplicadas con éxito.
-- [x] **Inicio coordinado y healthchecks:** `depends_on` con `service_healthy` entre PostgreSQL -> Backend -> Frontend.
-- [x] **Cero secretos:** Variables parametrizadas en `.env.example` y ningún secreto sensible commiteado.
-- [x] **Documentación técnica:** Generada en `docs/historias_usuario/HU-11-DOCKER-APP.md`.
+- [x] **Organización de archivos:** Cumple estrictamente con la estructura monorepo de `informe-general.md`.
+- [x] **Alineación con HU-05:** Servicio pgAdmin comentado en Compose con notas explícitas para el merge sin conflictos.
+- [x] **Cero secretos:** Variables parametrizadas en `.env.example` exclusivamente con valores dummy/placeholder y exclusión estricta de `.env` en `.gitignore`.
