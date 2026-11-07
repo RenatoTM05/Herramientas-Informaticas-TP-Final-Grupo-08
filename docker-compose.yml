@@ -1,0 +1,149 @@
+services:
+  # ---------------------------------------------------------------------------
+  # HU-04 | PostgreSQL 16 - Motor Relacional con persistencia y healthcheck
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: gamer_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tpfinalbackend}
+      POSTGRES_USER: ${POSTGRES_USER:-gamer_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gamer_secret_password_2026}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      TZ: ${TZ:-America/Argentina/Buenos_Aires}
+    ports:
+      # Expuesto solo en localhost para DBA local sin conflicto de puertos
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - db-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gamer_admin} -d ${POSTGRES_DB:-tpfinalbackend}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # ---------------------------------------------------------------------------
+  # HU-05 | pgAdmin4 - Cliente web de administración de base de datos
+  # ---------------------------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: gamer_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@gamer.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-gamer_admin_password_2026}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      TZ: ${TZ:-America/Argentina/Buenos_Aires}
+    ports:
+      - "127.0.0.1:${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    networks:
+      - db-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # HU-11 | Backend API (Node.js / Express 5) - Ejecución non-root optimizada
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: gamer-backend:production
+    container_name: gamer_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-tpfinalbackend}
+      DB_USER: ${POSTGRES_USER:-gamer_admin}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-gamer_secret_password_2026}
+      JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_token_for_gamer_social_2026}
+      SESSION_SECRET: ${SESSION_SECRET:-super_secret_session_key_gamer_app_2026}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
+      IGDB_CLIENT_ID: ${IGDB_CLIENT_ID}
+      IGDB_CLIENT_SECRET: ${IGDB_CLIENT_SECRET}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    networks:
+      - app-network
+      - db-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/api-docs/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ---------------------------------------------------------------------------
+  # HU-11 | Frontend Web (Angular 21 / Nginx Alpine) - Multi-stage build
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: gamer-frontend:production
+    container_name: gamer_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-4200}:80"
+    networks:
+      - app-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+# =============================================================================
+# Volúmenes nombrados con persistencia garantizada
+# =============================================================================
+volumes:
+  pgdata:
+    name: gamer_pgdata
+  pgadmin_data:
+    name: gamer_pgadmin_data
+
+# =============================================================================
+# Redes bridge internas segmentadas (Seguridad y Microsegmentación)
+# =============================================================================
+networks:
+  app-network:
+    name: gamer_app_network
+    driver: bridge
+  db-network:
+    name: gamer_db_network
+    driver: bridge
