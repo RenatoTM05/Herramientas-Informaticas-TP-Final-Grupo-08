@@ -24,7 +24,8 @@
      - **Categoría:** Selector de categoría ITIL vinculada a los módulos reales del sistema gamer.
      - **Urgencia:** Selector de nivel de urgencia ITIL.
    - Desactivar los formularios genéricos por defecto para evitar ambigüedades operativas.
-4. **Validación Funcional:** Comprobar con un usuario de perfil Self-Service (`post-only`) que el formulario aplique validación estricta (asteriscos obligatorios `*` y bloqueo de envío ante campos vacíos).
+4. **Reproducibilidad y Distribución en Equipo:** Proveer un dump inicial estructurado de la base de datos (`glpi/backup/glpi_inicial.sql`) para que cualquier integrante del equipo pueda clonar y disponer de toda la parametrización de la mesa de ayuda con un único comando.
+5. **Validación Funcional:** Comprobar con un usuario de perfil Self-Service (`post-only`) que el formulario aplique validación estricta (asteriscos obligatorios `*` y bloqueo de envío ante campos vacíos).
 
 ---
 
@@ -102,11 +103,38 @@ networks:
 
 ---
 
-## 3. Parametrización en la Interfaz Web de GLPI
+## 3. Guía de Puesta en Marcha Rápida para el Equipo (Restauración del Dump)
+
+Para que cualquier integrante del equipo de desarrollo o la cátedra disponga del sistema GLPI con el formulario personalizado y las categorías precargadas de forma inmediata:
+
+1. **Asegurar variables de entorno locales:**
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+2. **Levantar los contenedores:**
+   ```powershell
+   docker compose up -d
+   ```
+   *Esperar aproximadamente 30-40 segundos hasta que la base de datos y la autoinstalación de GLPI finalicen.*
+
+3. **Restaurar la configuración inicial (Dump SQL):**
+   ```powershell
+   Get-Content glpi/backup/glpi_inicial.sql | docker exec -i glpi-db mariadb -u glpi_user -pglpi_password glpi_db
+   ```
+
+4. **Acceso y Credenciales:**
+   - **URL:** `http://localhost:8080`
+   - **Administrador (Super-Admin):** `glpi` / `glpi`
+   - **Usuario Autoservicio (Self-Service):** `usuario` / `usuario`
+
+---
+
+## 4. Parametrización en la Interfaz Web de GLPI
 
 Para satisfacer los requerimientos de la cátedra con máxima claridad y usabilidad, se implementó un formulario centralizado mediante el diseñador nativo de GLPI 10:
 
-### 3.1 Carga de Categorías ITIL del Ecosistema Gamer
+### 4.1 Carga de Categorías ITIL del Ecosistema Gamer
 En `Configuración > Desplegables > Categorías de tickets / peticiones`, se crearon las categorías operativas representativas de la plataforma:
 - **`Problemas con Catálogo / IGDB`:** Errores de sincronización con la API de videojuegos o metadatos faltantes.
 - **`Fallo en Autenticación / Login`:** Problemas de inicio de sesión, bloqueo de credenciales o expiración de tokens JWT.
@@ -114,10 +142,10 @@ En `Configuración > Desplegables > Categorías de tickets / peticiones`, se cre
 
 Todas configuradas con visibilidad plena tanto para **Incidencias** como para **Peticiones/Solicitudes**.
 
-### 3.2 Desactivación de Formularios Genéricos
+### 4.2 Desactivación de Formularios Genéricos
 En `Administración > Formularios`, se desactivaron los formularios nativos precargados (*Report an issue* y *Request a service*) cambiando su estado a inactivo (`is_active = 0`), eliminando la duplicidad visual en el catálogo de autoservicio.
 
-### 3.3 Creación del Formulario Centralizado: "Mesa de Ayuda - Solicitud de Soporte IT"
+### 4.3 Creación del Formulario Centralizado: "Mesa de Ayuda - Solicitud de Soporte IT"
 En `Administración > Formularios > Añadir`:
 1. **Definición de Preguntas y Obligatoriedad:**
    - **`Tipo de ticket`:** Campo tipo *Tipo de petición* (`QuestionTypeRequestType`), con selector visible entre **Incidencia** vs **Solicitud**. Propiedad **Obligatorio = Sí**.
@@ -134,7 +162,7 @@ En `Administración > Formularios > Añadir`:
 
 ---
 
-## 4. Evidencias de Validación Técnica
+## 5. Evidencias de Validación Técnica
 
 Las evidencias de la configuración y de las pruebas funcionales se encuentran alojadas en `docs/images/hu15/`:
 
@@ -152,10 +180,11 @@ Las evidencias de la configuración y de las pruebas funcionales se encuentran a
 
 ---
 
-## 5. Cumplimiento de Criterios de Calidad (Definition of Done)
+## 6. Cumplimiento de Criterios de Calidad (Definition of Done)
 
 - [x] **Contenerización reproducible:** Servicios orquestados en Docker Compose con imágenes oficiales y volúmenes nombrados persistentes.
 - [x] **Cero secretos:** Variables parametrizadas en `.env` y documentadas en `.env.example`.
 - [x] **Formulario Self-Service adaptado:** Selectores explícitos y funcionales para Tipo (Incidencia vs Solicitud), Categoría y Urgencia, todos obligatorios.
+- [x] **Dump de inicialización distribuible:** Base de datos precargada en `glpi/backup/glpi_inicial.sql`.
 - [x] **Evidencias gráficas completas:** Capturas organizadas en `docs/images/hu15/`.
 - [x] **Preparación para historias siguientes:** GLPI listo para recibir el registro y trazabilidad de los 10 incidentes reales del proyecto (**HU-16**) y la integración de alertas automáticas mediante n8n (**HU-18**).
