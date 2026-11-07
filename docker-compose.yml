@@ -1,0 +1,52 @@
+services:
+  glpi-db:
+    image: mariadb:10.11
+    container_name: glpi-db
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${GLPI_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${GLPI_DB_NAME}
+      MYSQL_USER: ${GLPI_DB_USER}
+      MYSQL_PASSWORD: ${GLPI_DB_PASSWORD}
+    volumes:
+      - glpi_db_data:/var/lib/mysql
+    networks:
+      - glpi-network
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "${GLPI_DB_USER}", "--password=${GLPI_DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  glpi:
+    image: glpi/glpi:latest
+    container_name: glpi-app
+    restart: unless-stopped
+    depends_on:
+      glpi-db:
+        condition: service_healthy
+    ports:
+      - "${GLPI_PORT:-8080}:80"
+    environment:
+      TIMEZONE: America/Argentina/Buenos_Aires
+      GLPI_DB_HOST: glpi-db
+      GLPI_DB_PORT: 3306
+      GLPI_DB_NAME: ${GLPI_DB_NAME}
+      GLPI_DB_USER: ${GLPI_DB_USER}
+      GLPI_DB_PASSWORD: ${GLPI_DB_PASSWORD}
+    volumes:
+      - glpi_data:/var/glpi
+    networks:
+      - glpi-network
+
+volumes:
+  glpi_db_data:
+    name: glpi_db_data
+  glpi_data:
+    name: glpi_data
+
+networks:
+  glpi-network:
+    name: glpi-network
+    driver: bridge
