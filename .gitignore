@@ -15,3 +15,7 @@ Thumbs.db
 
 # Archivo de contexto para la I.A
 context.md
+
+# Volúmenes y datos locales
+pgdata/
+pgadmin_data
