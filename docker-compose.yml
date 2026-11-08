@@ -1,6 +1,6 @@
 services:
   # ---------------------------------------------------------------------------
-  # HU-04 | PostgreSQL 16 - Persistencia con volumen nombrado
+  # HU-04 | PostgreSQL 16 - Motor Relacional con persistencia y healthcheck
   # ---------------------------------------------------------------------------
   postgres:
     image: postgres:16-alpine
@@ -32,6 +32,63 @@ services:
           memory: 2G
 
   # ---------------------------------------------------------------------------
+  # HU-05 | pgAdmin4 - Cliente web de administración de base de datos
+  # NOTA DE MERGE: Este servicio corresponde a la HU-05 asignada a otro integrante
+  # y se encuentra desarrollado en la rama 'feature/docker-postgres'.
+  # Al realizar el merge con develop se integrará desde dicha rama.
+  # ---------------------------------------------------------------------------
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: gamer_pgadmin
+  #   restart: unless-stopped
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+  #     PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+  #     PGADMIN_CONFIG_SERVER_MODE: "False"
+  #     PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+  #     TZ: ${TZ:-America/Argentina/Buenos_Aires}
+  #   ports:
+  #     - "127.0.0.1:${PGADMIN_PORT:-5050}:80"
+  #   volumes:
+  #     - pgadmin_data:/var/lib/pgadmin
+  #     - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+  #   networks:
+  #     - db-network
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # HU-11 | Backend API (Node.js / Express 5) - Ejecución non-root optimizada
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: gamer-backend:production
+    container_name: gamer_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-tpfinalbackend}
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
+      IGDB_CLIENT_ID: ${IGDB_CLIENT_ID}
+      IGDB_CLIENT_SECRET: ${IGDB_CLIENT_SECRET}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    networks:
+      - app-network
   # HU-05 | pgAdmin4 - Gestión visual, conectado a db-network
   # ---------------------------------------------------------------------------
   pgadmin:
@@ -56,13 +113,64 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/api-docs/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ---------------------------------------------------------------------------
+  # HU-11 | Frontend Web (Angular 21 / Nginx Alpine) - Multi-stage build
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: gamer-frontend:production
+    container_name: gamer_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-4200}:80"
+    networks:
+      - app-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
 # =============================================================================
-# Volúmenes nombrados: garantizan persistencia ante down/up y recreación
+# Volúmenes nombrados con persistencia garantizada
 # =============================================================================
 volumes:
   pgdata:
     name: gamer_pgdata
+  # pgadmin_data:
+  #   name: gamer_pgadmin_data  # Correspondiente a HU-05
+
+# =============================================================================
+# Redes bridge internas segmentadas (Seguridad y Microsegmentación)
+# =============================================================================
+networks:
+  app-network:
+    name: gamer_app_network
+    driver: bridge
+  db-network:
+    name: gamer_db_network
+    driver: bridge
   pgadmin_data:
     name: gamer_pgadmin_data
 
