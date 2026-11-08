@@ -1,117 +1,62 @@
 services:
-  glpi-db:
-    image: mariadb:10.11
-    container_name: glpi-db
-    restart: unless-stopped
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-    environment:
-      MYSQL_ROOT_PASSWORD: ${GLPI_DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${GLPI_DB_NAME}
-      MYSQL_USER: ${GLPI_DB_USER}
-      MYSQL_PASSWORD: ${GLPI_DB_PASSWORD}
-    volumes:
-      - glpi_db_data:/var/lib/mysql
-    networks:
-      - glpi-network
-    healthcheck:
-      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "${GLPI_DB_USER}", "--password=${GLPI_DB_PASSWORD}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  glpi:
-    image: glpi/glpi:latest
-    container_name: glpi-app
-    restart: unless-stopped
-    depends_on:
-      glpi-db:
-        condition: service_healthy
-    ports:
-      - "${GLPI_PORT:-8080}:80"
-    environment:
-      TIMEZONE: America/Argentina/Buenos_Aires
-      GLPI_DB_HOST: glpi-db
-      GLPI_DB_PORT: 3306
-      GLPI_DB_NAME: ${GLPI_DB_NAME}
-      GLPI_DB_USER: ${GLPI_DB_USER}
-      GLPI_DB_PASSWORD: ${GLPI_DB_PASSWORD}
-    volumes:
-      - glpi_data:/var/glpi
-    networks:
-      - glpi-network
-
-volumes:
-  glpi_db_data:
-    name: glpi_db_data
-  glpi_data:
-    name: glpi_data
-
-networks:
-  glpi-network:
-    name: glpi-network
-    driver: bridge
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   # HU-04 | PostgreSQL 16 - Motor Relacional con persistencia y healthcheck
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   postgres:
     image: postgres:16-alpine
     container_name: gamer_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB:-tpfinalbackend}
+      POSTGRES_USER: ${POSTGRES_USER:-gamer_admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      # Encoding estándar para el clúster
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
-      TZ: ${TZ}
+      TZ: ${TZ:-America/Argentina/Buenos_Aires}
     ports:
-      # Solo expuesto en localhost (buena práctica de seguridad)
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+      # Expuesto solo en localhost para seguridad
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
       - db-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gamer_admin} -d ${POSTGRES_DB:-tpfinalbackend}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 20s
     deploy:
       resources:
         limits:
           memory: 2G
 
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   # HU-05 | pgAdmin4 - Cliente web de administración de base de datos
-  # NOTA DE MERGE: Este servicio corresponde a la HU-05 asignada a otro integrante
-  # y se encuentra desarrollado en la rama 'feature/docker-postgres'.
-  # Al realizar el merge con develop se integrará desde dicha rama.
-  # ---------------------------------------------------------------------------
-  # pgadmin:
-  #   image: dpage/pgadmin4:latest
-  #   container_name: gamer_pgadmin
-  #   restart: unless-stopped
-  #   environment:
-  #     PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-  #     PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-  #     PGADMIN_CONFIG_SERVER_MODE: "False"
-  #     PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
-  #     TZ: ${TZ:-America/Argentina/Buenos_Aires}
-  #   ports:
-  #     - "127.0.0.1:${PGADMIN_PORT:-5050}:80"
-  #   volumes:
-  #     - pgadmin_data:/var/lib/pgadmin
-  #     - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
-  #   networks:
-  #     - db-network
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
+  # ===========================================================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: gamer_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@gmail.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      TZ: ${TZ:-America/Argentina/Buenos_Aires}
+    ports:
+      - "127.0.0.1:${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    networks:
+      - db-network
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   # HU-11 | Backend API (Node.js / Express 5) - Ejecución non-root optimizada
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   backend:
     build:
       context: ./backend
@@ -125,47 +70,27 @@ networks:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB:-tpfinalbackend}
-      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_USER: ${POSTGRES_USER:-gamer_admin}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      SESSION_SECRET: ${SESSION_SECRET}
+      JWT_SECRET: ${JWT_SECRET:-token_pal_usuario}
+      SESSION_SECRET: ${SESSION_SECRET:-session_user}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
-      IGDB_CLIENT_ID: ${IGDB_CLIENT_ID}
-      IGDB_CLIENT_SECRET: ${IGDB_CLIENT_SECRET}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:3000/api/auth/google/callback}
+      IGDB_CLIENT_ID: ${IGDB_CLIENT_ID:-}
+      IGDB_CLIENT_SECRET: ${IGDB_CLIENT_SECRET:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     networks:
       - app-network
-  # HU-05 | pgAdmin4 - Gestión visual, conectado a db-network
-  # ---------------------------------------------------------------------------
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: gamer_pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
-      TZ: ${TZ}
-    ports:
-      # Solo accesible desde localhost
-      - "127.0.0.1:${PGADMIN_PORT:-5050}:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-      # Servidor pre-registrado (criterio de aceptación HU-05)
-      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
-    networks:
       - db-network
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/api-docs/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"]
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/api-docs/', (res) => { process.exit(res.statusCode >= 200 && res.statusCode < 400 ? 0 : 1); }).on('error', () => process.exit(1));"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -175,9 +100,9 @@ networks:
         limits:
           memory: 1G
 
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   # HU-11 | Frontend Web (Angular 21 / Nginx Alpine) - Multi-stage build
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   frontend:
     build:
       context: ./frontend
@@ -203,14 +128,65 @@ networks:
         limits:
           memory: 512M
 
+  # ===========================================================================
+  # HU-15 | GLPI Database (MariaDB 10.11) - Mesa de Ayuda ITIL
+  # ===========================================================================
+  glpi-db:
+    image: mariadb:10.11
+    container_name: glpi-db
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${GLPI_DB_ROOT_PASSWORD:-root_password_change_me}
+      MYSQL_DATABASE: ${GLPI_DB_NAME:-glpi_db}
+      MYSQL_USER: ${GLPI_DB_USER:-glpi_user}
+      MYSQL_PASSWORD: ${GLPI_DB_PASSWORD:-glpi_password_change_me}
+    volumes:
+      - glpi_db_data:/var/lib/mysql
+    networks:
+      - glpi-network
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "${GLPI_DB_USER:-glpi_user}", "--password=${GLPI_DB_PASSWORD:-glpi_password_change_me}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================================================
+  # HU-15 | GLPI Helpdesk (GLPI 10 Official) - Gestión de Tickets y Autoservicio
+  # ===========================================================================
+  glpi:
+    image: glpi/glpi:latest
+    container_name: glpi-app
+    restart: unless-stopped
+    depends_on:
+      glpi-db:
+        condition: service_healthy
+    ports:
+      - "${GLPI_PORT:-8080}:80"
+    environment:
+      TIMEZONE: ${TZ:-America/Argentina/Buenos_Aires}
+      GLPI_DB_HOST: glpi-db
+      GLPI_DB_PORT: 3306
+      GLPI_DB_NAME: ${GLPI_DB_NAME:-glpi_db}
+      GLPI_DB_USER: ${GLPI_DB_USER:-glpi_user}
+      GLPI_DB_PASSWORD: ${GLPI_DB_PASSWORD:-glpi_password_change_me}
+    volumes:
+      - glpi_data:/var/glpi
+    networks:
+      - glpi-network
+
 # =============================================================================
 # Volúmenes nombrados con persistencia garantizada
 # =============================================================================
 volumes:
   pgdata:
     name: gamer_pgdata
-  # pgadmin_data:
-  #   name: gamer_pgadmin_data  # Correspondiente a HU-05
+  pgadmin_data:
+    name: gamer_pgadmin_data
+  glpi_db_data:
+    name: glpi_db_data
+  glpi_data:
+    name: glpi_data
 
 # =============================================================================
 # Redes bridge internas segmentadas (Seguridad y Microsegmentación)
@@ -222,13 +198,6 @@ networks:
   db-network:
     name: gamer_db_network
     driver: bridge
-  pgadmin_data:
-    name: gamer_pgadmin_data
-
-# =============================================================================
-# Red interna bridge exclusiva para la capa de persistencia
-# =============================================================================
-networks:
-  db-network:
-    name: gamer_db_network
+  glpi-network:
+    name: glpi-network
     driver: bridge
