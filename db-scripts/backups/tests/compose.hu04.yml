@@ -1,0 +1,28 @@
+# Prueba de integración: aísla nombres y almacenamiento del PostgreSQL del grupo.
+services:
+  postgres:
+    container_name: !reset null
+    ports: !reset []
+  backups:
+    volumes:
+      - ./db-scripts/backups/tests:/scripts/tests:ro
+  restore:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gamer_admin}
+      POSTGRES_PASSWORD: ${HU07_RESTORE_PASSWORD:?Completar la clave de restauración de prueba}
+    networks: [db-network]
+    volumes: [restore-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD, pg_isready, -h, '127.0.0.1', -U, '${POSTGRES_USER:-gamer_admin}', -d, postgres]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+networks:
+  db-network:
+    name: !reset null
+    internal: true
+volumes:
+  pgdata:
+    name: !reset null
+  restore-data:
