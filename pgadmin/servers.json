@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "PostgreSQL 16 - Gamer DB",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "tpfinalbackend",
+      "Username": "gamer_admin",
+      "SSLMode": "prefer"
+    }
+  }
+}
