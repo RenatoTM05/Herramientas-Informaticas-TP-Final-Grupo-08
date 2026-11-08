@@ -7,24 +7,25 @@ services:
     container_name: gamer_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-tpfinalbackend}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Encoding estándar para el clúster
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
-      TZ: ${TZ:-America/Argentina/Buenos_Aires}
+      TZ: ${TZ}
     ports:
-      # Expuesto solo en localhost para acceso administrativo
+      # Solo expuesto en localhost (buena práctica de seguridad)
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
       - db-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-tpfinalbackend}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -88,6 +89,26 @@ services:
       - "${BACKEND_PORT:-3000}:3000"
     networks:
       - app-network
+  # HU-05 | pgAdmin4 - Gestión visual, conectado a db-network
+  # ---------------------------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: gamer_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      TZ: ${TZ}
+    ports:
+      # Solo accesible desde localhost
+      - "127.0.0.1:${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      # Servidor pre-registrado (criterio de aceptación HU-05)
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    networks:
       - db-network
     depends_on:
       postgres:
@@ -147,6 +168,16 @@ networks:
   app-network:
     name: gamer_app_network
     driver: bridge
+  db-network:
+    name: gamer_db_network
+    driver: bridge
+  pgadmin_data:
+    name: gamer_pgadmin_data
+
+# =============================================================================
+# Red interna bridge exclusiva para la capa de persistencia
+# =============================================================================
+networks:
   db-network:
     name: gamer_db_network
     driver: bridge
