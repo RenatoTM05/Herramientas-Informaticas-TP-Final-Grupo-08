@@ -31,6 +31,42 @@ services:
           memory: 2G
 
   # ===========================================================================
+  # HU-07 | Respaldos lógicos automáticos de PostgreSQL
+  # ===========================================================================
+  backups:
+    image: postgres:16-bookworm
+    user: postgres
+    entrypoint: [bash, /scripts/scheduler.sh]
+    environment:
+      PGHOST: postgres
+      PGPORT: '5432'
+      PGUSER: ${POSTGRES_USER:-gamer_admin}
+      PGDATABASE: ${POSTGRES_DB:-tpfinalbackend}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGCONNECT_TIMEOUT: '5'
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+    volumes:
+      - ./db-scripts/backups/backup.sh:/scripts/backup.sh:ro
+      - ./db-scripts/backups/scheduler.sh:/scripts/scheduler.sh:ro
+      - ./db-scripts/backups/restore.sh:/scripts/restore.sh:ro
+      - backup-data:/backups
+    depends_on:
+      backup-permissions:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    networks: [db-network]
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+  backup-permissions:
+    image: postgres:16-bookworm
+    entrypoint: [bash, -c, 'chown postgres:postgres /backups && chmod 700 /backups']
+    volumes: [backup-data:/backups]
+    network_mode: none
+
+  # ===========================================================================
   # HU-05 | pgAdmin4 - Cliente web de administración de base de datos
   # ===========================================================================
   pgadmin:
@@ -179,6 +215,7 @@ services:
 # Volúmenes nombrados con persistencia garantizada
 # =============================================================================
 volumes:
+  backup-data:
   pgdata:
     name: gamer_pgdata
   pgadmin_data:
