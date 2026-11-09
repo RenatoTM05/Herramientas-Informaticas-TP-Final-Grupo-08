@@ -8,7 +8,7 @@ SET synchronous_commit = OFF;
 
 -- 1. Limpieza previa
 TRUNCATE TABLE resenas CASCADE;
-TRUNCATE TABLE usuarios CASCADE;
+TRUNCATE TABLE "Usuarios" CASCADE;
 TRUNCATE TABLE logins CASCADE;
 TRUNCATE TABLE juegos CASCADE;
 TRUNCATE TABLE accesos CASCADE;
@@ -29,7 +29,7 @@ SELECT
 FROM generate_series(1, 5000) AS i;
 
 -- 3. Poblar Logins / Usuarios con nombres y apellidos variados (100,000 registros)
-INSERT INTO logins (username, password, nombre, apellido, perfil, googleId, email, "createdAt", "updatedAt")
+INSERT INTO logins (username, password, nombre, apellido, perfil, "googleId", email, "createdAt", "updatedAt")
 SELECT 
     'gamer_' || i AS username,
     '$2b$10$EpVqVv0g9xL7p8Y5z6x3.O5K8q7Z1v2N3m4L5k6J7h8G9f0E1d2C3' AS password,
@@ -47,7 +47,7 @@ SELECT
 FROM generate_series(1, 100000) AS i;
 
 -- 4. Poblar perfiles extendidos en la tabla 'usuarios' (100,000 registros)
-INSERT INTO usuarios ("loginId", "createdAt", "updatedAt")
+INSERT INTO "Usuarios" ("loginId", "createdAt", "updatedAt")
 SELECT id AS "loginId", NOW(), NOW()
 FROM logins;
 
@@ -80,7 +80,7 @@ SELECT
     CASE WHEN i % 5 = 0 THEN 'Error de autenticación' ELSE NULL END
 FROM generate_series(1, 50000) AS i;
 
-INSERT INTO audit_logs (usuario, accion, metodo, ruta, ip, "userAgent", fecha, statusCode, resultado)
+INSERT INTO audit_logs (usuario, accion, metodo, ruta, ip, "userAgent", fecha, "statusCode", resultado)
 SELECT 
     'gamer_' || (1 + (i % 100000)),
     CASE (i % 3) WHEN 0 THEN 'CREAR_RESEÑA' WHEN 1 THEN 'ELIMINAR_FAVORITO' ELSE 'CONSULTAR_JUEGO' END,
@@ -98,7 +98,7 @@ SET synchronous_commit = ON;
 -- 7. Actualizar estadísticas para el optimizador
 ANALYZE juegos;
 ANALYZE logins;
-ANALYZE usuarios;
+ANALYZE "Usuarios";
 ANALYZE resenas;
 ANALYZE accesos;
 ANALYZE audit_logs;
