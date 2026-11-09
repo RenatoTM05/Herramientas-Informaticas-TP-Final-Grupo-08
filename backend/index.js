@@ -20,6 +20,17 @@ const dashboardJuegoRouter=require('./src/routes/dashboardJuego.route')
 
 const app = express();
 
+
+//HEALTHCHECK PARA DOCKER
+app.get('/health', async (req, res) => {
+    try {
+        await sequelize.authenticate();
+        res.status(200).json({ status: 'OK' });
+    } catch (error) {
+        res.status(503).json({ status: 'ERROR' });
+    }
+});
+
 //Middlewares de sesión 
 app.use(session({
     secret:process.env.SESSION_SECRET || 'session_user',
