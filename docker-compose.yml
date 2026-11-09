@@ -126,15 +126,77 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/api-docs/', (res) => { process.exit(res.statusCode >= 200 && res.statusCode < 400 ? 0 : 1); }).on('error', () => process.exit(1));"]
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 15s
+      retries: 10
+      start_period: 30s
     deploy:
       resources:
         limits:
           memory: 1G
+
+  # ===========================================================================
+  # HU-06 | Carga masiva automatizada de datos de prueba (6 millones)
+  # ===========================================================================
+  db-seeder:
+    image: postgres:16-alpine
+    container_name: gamer_db_seeder
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:-gamer_admin}
+      PGDATABASE: ${POSTGRES_DB:-tpfinalbackend}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    restart: "no"
+    volumes:
+      - ./db-scripts/seeders:/seeders:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - db-network
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+     - |
+      set -eu
+
+      echo "Verificando si la carga masiva ya fue ejecutada..."
+
+      psql -v ON_ERROR_STOP=1 -c "
+        CREATE TABLE IF NOT EXISTS public.seed_runs (
+          seed_name VARCHAR(255) PRIMARY KEY,
+          executed_at TIMESTAMP DEFAULT NOW()
+        );
+      "
+
+      already_seeded=$$(psql -X -A -t -v ON_ERROR_STOP=1 -c "
+        SELECT EXISTS (
+          SELECT 1 FROM public.seed_runs
+          WHERE seed_name = '02_massive_seed_6M.sql'
+        );
+      " | tr -d '[:space:]')
+
+      if [ "$$already_seeded" = "t" ]; then
+        echo "La carga masiva ya fue realizada. No se repetirá."
+        exit 0
+      fi
+
+      echo "Iniciando carga masiva de datos..."
+
+      psql -X -v ON_ERROR_STOP=1 \
+        -f /seeders/02_massive_seed_6M.sql
+
+      psql -v ON_ERROR_STOP=1 -c "
+        INSERT INTO public.seed_runs (seed_name)
+        VALUES ('02_massive_seed_6M.sql');
+      "
+
+      echo "Carga masiva finalizada correctamente."
+
+
 
   # ===========================================================================
   # HU-11 | Frontend Web (Angular 21 / Nginx Alpine) - Multi-stage build
@@ -153,6 +215,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+      db-seeder:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/ || exit 1"]
       interval: 10s
