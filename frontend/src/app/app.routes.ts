@@ -19,7 +19,6 @@ export const routes: Routes = [
   
   // Ponemos las rutas con ID bien arriba para que Angular las lea primero
   // Soporte para ruta de tarjeta del catálogo y para ruta de sugerencia del buscador
-  { path: 'JuegoDetalle/:id', component: JuegoDetalle }, 
   { path: 'juego/:id', component: JuegoDetalle },
 
   // Ruta boton del navbar para ir al dashboard de admin

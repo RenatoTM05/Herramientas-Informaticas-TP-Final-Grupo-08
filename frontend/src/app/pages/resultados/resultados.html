@@ -1,53 +1,179 @@
+
 <div class="container mt-5 mb-5 min-vh-100">
-  
+
   <h3 class="mb-4 text-white fw-bold">
-    Resultados de la búsqueda: <span class="text-info">"{{ terminoBusqueda }}"</span>
+    Resultados de la búsqueda:
+    <span class="text-info">"{{ terminoBusqueda }}"</span>
   </h3>
 
+  <!-- Filtros -->
+  <div class="card bg-dark border-secondary p-3 mb-4">
+
+    <div class="row g-3">
+
+      <div class="col-md-6">
+        <label class="form-label text-white">Desarrolladora</label>
+        <input
+          type="text"
+          class="form-control bg-secondary text-white border-secondary"
+          [(ngModel)]="desarrolladora"
+          placeholder="Ej: Nintendo">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label text-white">Calificación mínima</label>
+        <input
+          type="number"
+          class="form-control bg-secondary text-white border-secondary"
+          [(ngModel)]="calificacionMin"
+          min="0"
+          max="100"
+          placeholder="0">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label text-white">Calificación máxima</label>
+        <input
+          type="number"
+          class="form-control bg-secondary text-white border-secondary"
+          [(ngModel)]="calificacionMax"
+          min="0"
+          max="100"
+          placeholder="100">
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label text-white">Ordenar por</label>
+        <select
+          class="form-select bg-secondary text-white border-secondary"
+          [(ngModel)]="orden">
+
+          <option value="titulo">Título</option>
+          <option value="calificacion">Calificación</option>
+          <option value="fecha_lanzamiento">Fecha de lanzamiento</option>
+          <option value="desarrolladora">Desarrolladora</option>
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label text-white">Dirección</label>
+        <select
+          class="form-select bg-secondary text-white border-secondary"
+          [(ngModel)]="direccion">
+
+          <option value="ASC">Ascendente</option>
+          <option value="DESC">Descendente</option>
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label text-white">Juegos por página</label>
+        <select
+          class="form-select bg-secondary text-white border-secondary"
+          [(ngModel)]="limite"
+          (change)="cambiarLimite()">
+
+          <option [ngValue]="10">10</option>
+          <option [ngValue]="20">20</option>
+          <option [ngValue]="50">50</option>
+          <option [ngValue]="100">100</option>
+        </select>
+      </div>
+
+      <div class="col-12">
+        <button
+          class="btn btn-info fw-bold"
+          (click)="aplicarFiltros()">
+          <i class="bi bi-search me-2"></i>
+          Aplicar filtros
+        </button>
+
+        <button
+          class="btn btn-outline-light ms-2"
+          (click)="desarrolladora = ''; calificacionMin = null; calificacionMax = null; orden = 'titulo'; direccion = 'ASC'; aplicarFiltros()">
+          Limpiar filtros
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Información de resultados -->
+  <div *ngIf="!cargando" class="text-secondary mb-3">
+    Se encontraron {{ total }} juegos.
+  </div>
+
+  <!-- Cargando -->
   <div *ngIf="cargando" class="text-center my-5">
-    <div class="spinner-border text-info" role="status" style="width: 3rem; height: 3rem;">
+    <div class="spinner-border text-info" role="status">
       <span class="visually-hidden">Cargando...</span>
     </div>
   </div>
 
-  <div *ngIf="!cargando && resultados.length === 0" class="alert bg-dark text-white border-secondary text-center fs-5 shadow-sm">
-    <i class="bi bi-emoji-frown me-2 text-warning"></i> No encontramos juegos que coincidan con <b>"{{ terminoBusqueda }}"</b>.
+  <!-- Sin resultados -->
+  <div
+    *ngIf="!cargando && resultados.length === 0"
+    class="alert bg-dark text-white border-secondary text-center fs-5 shadow-sm">
+
+    <i class="bi bi-emoji-frown me-2 text-warning"></i>
+    No encontramos juegos que coincidan con tu búsqueda.
   </div>
 
-  <div *ngIf="!cargando && resultados.length > 0" class="d-flex flex-column gap-2">
-    
-    <div *ngFor="let juego of resultados" 
-      class="card border-0 rounded-0 steam-row shadow-sm" 
+  <!-- Lista de resultados -->
+  <div *ngIf="!cargando && resultados.length > 0"
+       class="d-flex flex-column gap-2">
+
+    <div
+      *ngFor="let juego of resultados"
+      class="card border-0 rounded-0 steam-row shadow-sm"
       (click)="verDetalle(juego.id)">
-      
+
       <div class="row g-0 align-items-center h-100">
-        
+
         <div class="col-auto h-100">
-          <img [src]="juego.imagen_portada || 'assets/placeholder.jpg'" 
-            class="steam-img object-fit-cover" 
+          <img
+            [src]="juego.imagen_portada || 'assets/placeholder.jpg'"
+            class="steam-img object-fit-cover"
             [alt]="juego.titulo">
         </div>
-        
+
         <div class="col px-3 py-2 d-flex flex-column justify-content-between h-100">
+
           <div>
-            <h5 class="fw-bold mb-1 steam-title text-truncate">{{ juego.titulo }}</h5>
-            
+            <h5 class="fw-bold mb-1 steam-title text-truncate">
+              {{ juego.titulo }}
+            </h5>
+
             <div class="d-flex gap-2 text-secondary fs-6 mt-2">
-              <i *ngFor="let icono of obtenerIconosPlataformas(juego.plataformas)" [class]="'bi ' + icono"></i>
+              <i
+                *ngFor="let icono of obtenerIconosPlataformas(juego.plataformas)"
+                [class]="'bi ' + icono">
+              </i>
             </div>
           </div>
+
         </div>
 
-        <div class="col-auto pe-4 text-end d-none d-md-block d-flex flex-column justify-content-center">
-          
-          <div class="text-secondary mb-2 text-uppercase" style="font-size: 0.80rem; letter-spacing: 0.5px;">
-            {{ juego.fecha_lanzamiento ? (juego.fecha_lanzamiento | date:'dd MMM yyyy') : 'Próximamente' }}
+        <div class="col-auto pe-4 text-end d-none d-md-block">
+
+          <div class="text-secondary mb-2 text-uppercase"
+               style="font-size: 0.80rem; letter-spacing: 0.5px;">
+
+            {{ juego.fecha_lanzamiento
+              ? (juego.fecha_lanzamiento | date:'dd MMM yyyy')
+              : 'Próximamente' }}
           </div>
-          
-          <div class="d-flex gap-1 justify-content-end flex-wrap" style="max-width: 150px;">
-            <span class="badge bg-secondary bg-opacity-25 text-light border border-secondary" *ngFor="let genero of (juego.generos | slice:0:2)">
+
+          <div class="d-flex gap-1 justify-content-end flex-wrap"
+               style="max-width: 150px;">
+
+            <span
+              class="badge bg-secondary bg-opacity-25 text-light border border-secondary"
+              *ngFor="let genero of (juego.generos | slice:0:2)">
+
               {{ genero }}
             </span>
+
           </div>
 
         </div>
@@ -56,4 +182,34 @@
     </div>
 
   </div>
+
+  <!-- Paginación -->
+  <div
+    *ngIf="!cargando && totalPaginas > 1"
+    class="d-flex justify-content-center align-items-center gap-3 mt-4">
+
+    <button
+      class="btn btn-outline-info"
+      [disabled]="pagina === 1"
+      (click)="cambiarPagina(pagina - 1)">
+
+      <i class="bi bi-chevron-left"></i>
+      Anterior
+    </button>
+
+    <span class="text-white">
+      Página {{ pagina }} de {{ totalPaginas }}
+    </span>
+
+    <button
+      class="btn btn-outline-info"
+      [disabled]="pagina === totalPaginas"
+      (click)="cambiarPagina(pagina + 1)">
+
+      Siguiente
+      <i class="bi bi-chevron-right"></i>
+    </button>
+
+  </div>
+
 </div>
