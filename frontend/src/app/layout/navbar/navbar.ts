@@ -97,7 +97,7 @@ export class Navbar implements OnInit {
     this.sugerenciasBusqueda = [];
 
     // Como el router navega a la misma pantalla de detalle, Angular actualiza el ID automáticamente.
-    this.router.navigate(['/JuegoDetalle', juego.id]);
+    this.router.navigate(['/juego', juego.id]);
     this.cdr.detectChanges();
   }
 
@@ -127,7 +127,7 @@ export class Navbar implements OnInit {
 
   cerrarSesion() {
     localStorage.removeItem('token');
-    this.router.navigate(['/home']);
+    this.router.navigate(['/']);
   }
 
   obtenerNombreUsuario(): string {
