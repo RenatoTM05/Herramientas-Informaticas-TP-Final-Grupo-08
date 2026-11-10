@@ -17,14 +17,16 @@ services:
       - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./db-scripts/init/01_schema_init.sql:/docker-entrypoint-initdb.d/01_schema_init.sql:ro
+      - ./db-scripts/seeders/02_massive_seed_6M.sql:/docker-entrypoint-initdb.d/02_massive_seed_6M.sql:ro
     networks:
       - db-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gamer_admin} -d ${POSTGRES_DB:-tpfinalbackend}"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:-gamer_admin} -d ${POSTGRES_DB:-tpfinalbackend}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 15m
     deploy:
       resources:
         limits:
