@@ -1,17 +1,10 @@
+
 -- =========================================================================
 -- Archivo: 01_schema_init.sql
--- Descripción: DDL de inicialización basado en los modelos reales de Sequelize
+-- Descripción: Creación del esquema inicial basado en los modelos Sequelize
 -- =========================================================================
 
--- Eliminar tablas en orden inverso para evitar conflictos de FK
-DROP TABLE IF EXISTS resenas CASCADE;
-DROP TABLE IF EXISTS usuarios CASCADE;
-DROP TABLE IF EXISTS logins CASCADE;
-DROP TABLE IF EXISTS juegos CASCADE;
-DROP TABLE IF EXISTS audit_logs CASCADE;
-DROP TABLE IF EXISTS accesos CASCADE;
-
--- 1. Tabla de Logins (Usuarios del sistema / Autenticación)
+-- 1. Tabla de Logins (usuarios del sistema / autenticación)
 CREATE TABLE logins (
     id SERIAL PRIMARY KEY,
     username VARCHAR(255) NOT NULL,
@@ -19,25 +12,29 @@ CREATE TABLE logins (
     nombre VARCHAR(255) NOT NULL,
     apellido VARCHAR(255) NOT NULL,
     perfil VARCHAR(255) NOT NULL,
-    googleId VARCHAR(255) UNIQUE,
+    "googleId" VARCHAR(255) UNIQUE,
     foto VARCHAR(255),
     email VARCHAR(255),
     "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 2. Tabla de Usuarios (Perfil extendido vinculado a Login)
-CREATE TABLE usuarios (
+-- 2. Tabla de Usuarios (perfil extendido vinculado a Login)
+-- Sequelize pluraliza el modelo "Usuario" como "Usuarios".
+CREATE TABLE "Usuarios" (
     id SERIAL PRIMARY KEY,
-    "loginId" INT NOT NULL,
+    "loginId" INT NOT NULL UNIQUE,
     "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_login_usuario FOREIGN KEY ("loginId") REFERENCES logins(id) ON DELETE CASCADE
+    CONSTRAINT fk_login_usuario
+        FOREIGN KEY ("loginId")
+        REFERENCES logins(id)
+        ON DELETE CASCADE
 );
 
--- 3. Tabla de Juegos (Catálogo de IGDB)
+-- 3. Tabla de Juegos (catálogo de IGDB)
 CREATE TABLE juegos (
-    id INT PRIMARY KEY, -- ID proveniente de IGDB
+    id INT PRIMARY KEY,
     titulo VARCHAR(255) NOT NULL,
     descripcion TEXT,
     imagen_portada VARCHAR(255),
@@ -56,7 +53,7 @@ CREATE TABLE juegos (
     "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 4. Tabla de Reseñas (La que va a recibir el volumen masivo de la HU-06)
+-- 4. Tabla de Reseñas
 CREATE TABLE resenas (
     id SERIAL PRIMARY KEY,
     "juegoId" INT NOT NULL,
@@ -65,8 +62,14 @@ CREATE TABLE resenas (
     likes INT DEFAULT 0,
     "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_resena_juego FOREIGN KEY ("juegoId") REFERENCES juegos(id) ON DELETE CASCADE,
-    CONSTRAINT fk_resena_login FOREIGN KEY ("loginId") REFERENCES logins(id) ON DELETE CASCADE
+    CONSTRAINT fk_resena_juego
+        FOREIGN KEY ("juegoId")
+        REFERENCES juegos(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_resena_login
+        FOREIGN KEY ("loginId")
+        REFERENCES logins(id)
+        ON DELETE CASCADE
 );
 
 -- 5. Tabla de Accesos
@@ -81,7 +84,7 @@ CREATE TABLE accesos (
     error VARCHAR(255)
 );
 
--- 6. Tabla de Audit Logs
+-- 6. Tabla de Auditoría
 CREATE TABLE audit_logs (
     id SERIAL PRIMARY KEY,
     usuario VARCHAR(255) NOT NULL,
@@ -91,6 +94,6 @@ CREATE TABLE audit_logs (
     ip VARCHAR(255) NOT NULL,
     "userAgent" VARCHAR(255) NOT NULL,
     fecha TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    statusCode INT NOT NULL,
+    "statusCode" INT NOT NULL,
     resultado TEXT NOT NULL
 );
