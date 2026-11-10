@@ -63,14 +63,16 @@ app.use('/api/login',loginRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/dashboardJuego',dashboardJuegoRouter)
 
-// SINCRONIZAR BASE DE DATOS Y ARRANCAR
-sequelize.sync({ alter: true })
+// VERIFICAR CONEXIÓN A LA BASE DE DATOS Y ARRANCAR
+sequelize.authenticate()
     .then(() => {
-        console.log('Tablas de PostgreSQL sincronizadas');
+        console.log('DB conectada con PostgreSQL');
+
         app.listen(app.get('port'), () => {
-            console.log(`Servidor corriendo en el puerto`, app.get('port'));
+            console.log(`Servidor corriendo en el puerto ${app.get('port')}`);
         });
     })
     .catch(err => {
-        console.error('Error fatal: No se pudo iniciar el servidor o conectar a la BD:', err);
+        console.error('Error fatal: No se pudo conectar a PostgreSQL:', err);
+        process.exit(1);
     });
