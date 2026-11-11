@@ -1,20 +1,26 @@
-const express=require('express')
-const router=express.Router()
-const juegoCtrl = require('../controllers/juego.controller');
-const auditoriaMiddleware=require('../middlewares/audit.middleware')
 
-// obtener TODOS los juegos locales cache (GET)
+const express = require('express');
+const router = express.Router();
+
+const juegoCtrl = require('../controllers/juego.controller');
+const auditoriaMiddleware = require('../middlewares/audit.middleware');
+
 router.get('/', juegoCtrl.getJuegos);
 
 router.get('/mas-jugados', juegoCtrl.getMasJugados);
 
-// autocompletado (mientras el usuario escribe)
-router.get('/sugerencias/:nombre',auditoriaMiddleware('BUSCAR_JUEGO'), juegoCtrl.getSugerencias);
+router.get('/buscar', juegoCtrl.buscarJuegos);
 
-// Ruta para ver la pagina de detalle de un juego con sus DLCs y Similares
-router.get('/detalle/:id', auditoriaMiddleware('DETALLE_JUEGO'),juegoCtrl.getDetalleJuego);
+router.get(
+    '/sugerencias/:nombre',
+    auditoriaMiddleware('BUSCAR_JUEGO'),
+    juegoCtrl.getSugerencias
+);
 
-//ruta para testear juegos 
-router.get('/test/:id',juegoCtrl.getTest);
+router.get(
+    '/detalle/:id',
+    auditoriaMiddleware('DETALLE_JUEGO'),
+    juegoCtrl.getDetalleJuego
+);
 
 module.exports = router;

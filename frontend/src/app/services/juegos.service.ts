@@ -1,12 +1,13 @@
+
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
 })
 export class JuegosService {
-  private baseUrl = 'http://localhost:3000/juego'; 
+  private baseUrl = 'http://localhost:3000/juego';
 
   constructor(private http: HttpClient) { }
 
@@ -18,21 +19,58 @@ export class JuegosService {
     return this.http.get(`${this.baseUrl}/mas-jugados`);
   }
 
-  // --- NUEVAS RUTAS  ---
+  // Búsqueda con filtros, ordenamiento y paginación
+  buscarJuegos(filtros: {
+    termino?: string;
+    desarrolladora?: string;
+    calificacionMin?: number | null;
+    calificacionMax?: number | null;
+    pagina?: number;
+    limite?: number;
+    orden?: string;
+    direccion?: string;
+  }): Observable<any> {
 
-  // 1. Para el buscador gigante del Home
-  obtenerSugerencias(nombre: string): Observable<any> {
-    return this.http.get(`${this.baseUrl}/sugerencias/${nombre}`);
+    let params = new HttpParams();
+
+    if (filtros.termino) {
+      params = params.set('termino', filtros.termino);
+    }
+
+    if (filtros.desarrolladora) {
+      params = params.set('desarrolladora', filtros.desarrolladora);
+    }
+
+    if (filtros.calificacionMin != null) {
+      params = params.set('calificacionMin', filtros.calificacionMin);
+    }
+
+    if (filtros.calificacionMax != null) {
+      params = params.set('calificacionMax', filtros.calificacionMax);
+    }
+
+    params = params
+      .set('pagina', filtros.pagina ?? 1)
+      .set('limite', filtros.limite ?? 20)
+      .set('orden', filtros.orden ?? 'titulo')
+      .set('direccion', filtros.direccion ?? 'ASC');
+
+    return this.http.get(`${this.baseUrl}/buscar`, { params });
   }
 
-  // 2. Para cuando hagan clic en una tarjeta y quieran ver la info completa
+  // Sugerencias para el buscador del Home y Navbar
+  obtenerSugerencias(nombre: string): Observable<any> {
+    return this.http.get(
+      `${this.baseUrl}/sugerencias/${encodeURIComponent(nombre)}`
+    );
+  }
+
+  // Detalle de un juego
   obtenerDetalle(id: number): Observable<any> {
     return this.http.get(`${this.baseUrl}/detalle/${id}`);
   }
 
-  // Método para obtener el detalle de un juego por su ID
-  getDetalleJuego(id: string) {
-    // Le quitamos el '/api' a la URL para que coincida con el index.js del backend
-    return this.http.get(`http://localhost:3000/juego/detalle/${id}`);
+  getDetalleJuego(id: string): Observable<any> {
+    return this.http.get(`${this.baseUrl}/detalle/${id}`);
   }
 }

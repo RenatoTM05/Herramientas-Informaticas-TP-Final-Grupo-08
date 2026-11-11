@@ -1,119 +1,193 @@
+
 const { Op } = require('sequelize');
-const Juego = require('../models/juego.model'); 
-const igdbService = require('../services/igdb.service'); //servicio de API externa
+const Juego = require('../models/juego.model');
 
-const juegoCtrl = {}; // Objeto para guardar funciones
+const juegoCtrl = {};
 
-// Obtener TODOS los juegos de nuestra base local (GET)
+// Obtener juegos locales
 juegoCtrl.getJuegos = async (req, res) => {
     try {
-        const juegos = await Juego.findAll(); 
+        const juegos = await Juego.findAll({
+            order: [['id', 'DESC']]
+        });
+
         res.json(juegos);
     } catch (error) {
-        res.status(500).json({ status: '0', msg: 'Error al obtener los juegos.' });
+        console.error('Error al obtener los juegos:', error);
+        res.status(500).json({
+            status: '0',
+            msg: 'Error al obtener los juegos.'
+        });
     }
 };
 
-juegoCtrl.getTest= async(req, res)=>{
-    try {
-        const { id } = req.params;
-        const resultado = await igdbService.testGame(id);
-        if (!resultado) {
-            return res.status(404).json({ status: '0', msg: `Juego con id ${id} no encontrado en IGDB.` });
-        }
-        res.json(resultado);
-    } catch (error) {
-        console.error(`Error en getTest con id ${id}:`, error.message);
-        res.status(500).json({ status: '0', msg: 'Error en obtener detalles extensos', error: error.message });
-    }
-}
-
-// variables fuera del controlador para que persistan en memoria mientras el servidor corre
-let cachePopulares = null;
-let ultimaActualizacion = null;
-
+// Obtener los juegos mejor calificados
 juegoCtrl.getMasJugados = async (req, res) => {
     try {
-        const ahora = new Date();
-        
-        // buscamos si en cache existe y si tiene menos de 24 horas (86400000 ms)
-        if (cachePopulares && ultimaActualizacion && (ahora - ultimaActualizacion < 86400000)) {
-            console.log('Sirviendo desde cache en memoria...');
-            return res.json({ status: '1', data: cachePopulares });
-        }
+        const juegos = await Juego.findAll({
+            order: [['calificacion', 'DESC']],
+            limit: 10
+        });
 
-        // Si no hay cache o pasaron mas de 24 horas hacemos peticion
-        console.log('Actualizando cache de "Mas Jugados" desde IGDB...');
-        const juegos = await igdbService.obtenerMasJugados();
-        
-        // guardamos
-        cachePopulares = juegos;
-        ultimaActualizacion = ahora;
-
-        res.json({ status: '1', data: juegos });
+        res.json({
+            status: '1',
+            data: juegos
+        });
     } catch (error) {
-        res.status(500).json({ status: '0', msg: 'Error al obtener los más jugados.' });
+        console.error('Error al obtener juegos destacados:', error);
+        res.status(500).json({
+            status: '0',
+            msg: 'Error al obtener los juegos destacados.'
+        });
     }
 };
 
+// Buscar sugerencias por título en PostgreSQL
 juegoCtrl.getSugerencias = async (req, res) => {
     try {
         const { nombre } = req.params;
-        // llamamos a buscarJuegos
-        const resultados = await igdbService.buscarJuegos(nombre); 
-        res.json({ status: '1', data: resultados });
+
+        const resultados = await Juego.findAll({
+            where: {
+                titulo: {
+                    [Op.iLike]: `%${nombre}%`
+                }
+            },
+            order: [['calificacion', 'DESC']],
+            limit: 10
+        });
+
+        res.json({
+            status: '1',
+            data: resultados
+        });
     } catch (error) {
-        res.status(500).json({ status: '0', msg: 'Error en sugerencias' });
+        console.error('Error en sugerencias:', error);
+        res.status(500).json({
+            status: '0',
+            msg: 'Error al buscar juegos.'
+        });
     }
 };
 
-// Obtener el detalle completo de un juego y cachearlo
+// Obtener detalle exclusivamente desde PostgreSQL
 juegoCtrl.getDetalleJuego = async (req, res) => {
     try {
-        const { id } = req.params;
-        const juegoId = parseInt(id, 10); // convertimos el id en integer y base 10
+        const juegoId = Number.parseInt(req.params.id, 10);
 
-        // buscamos primero en nuestra BD
-        let juegoLocal = await Juego.findByPk(juegoId);
-
-        if (juegoLocal) {
-            console.log('⚡ Cache Hit: Juego cargado desde PostgreSQL');
-            return res.json({ status: '1', data: juegoLocal });
+        if (!Number.isInteger(juegoId) || juegoId <= 0) {
+            return res.status(400).json({
+                status: '0',
+                msg: 'ID de juego inválido.'
+            });
         }
 
-        // no esta local, consultamos a IGDB
-        console.log('🌐 Cache Miss: Juego no encontrado en local, solicitando a IGDB...');
-        const detalleCompleto = await igdbService.obtenerDetallePorId(juegoId);
+        const juego = await Juego.findByPk(juegoId);
 
-        if (!detalleCompleto) {
-            return res.status(404).json({ status: '0', msg: 'Juego no encontrado en IGDB.' });
+        if (!juego) {
+            return res.status(404).json({
+                status: '0',
+                msg: 'Juego no encontrado en la base de datos.'
+            });
         }
 
-        // guardamos el juego para ahorrar token si se busca el mismo juego
-        const juegoNuevo = await Juego.create({
-            id: detalleCompleto.id,
-            titulo: detalleCompleto.titulo,
-            descripcion: detalleCompleto.descripcion,
-            imagen_portada: detalleCompleto.imagen_portada,
-            plataformas: detalleCompleto.plataformas,
-            generos: detalleCompleto.generos,
-            trailer_id: detalleCompleto.trailer_id,
-            fecha_lanzamiento: detalleCompleto.fecha_lanzamiento,
-            calificacion: detalleCompleto.calificacion,
-            desarrolladora: detalleCompleto.desarrolladora,
-            capturas: detalleCompleto.capturas,
-            juegos_similares: detalleCompleto.juegos_similares,
-            dlcs: detalleCompleto.dlcs,
-            expansiones: detalleCompleto.expansiones,
-            saga: detalleCompleto.saga
+        res.json({
+            status: '1',
+            data: juego
+        });
+    } catch (error) {
+        console.error('Error al obtener detalle del juego:', error);
+        res.status(500).json({
+            status: '0',
+            msg: 'Error al obtener el detalle del juego.'
+        });
+    }
+};
+
+// Búsqueda con filtros y paginación para HU21
+juegoCtrl.buscarJuegos = async (req, res) => {
+    try {
+        const {
+            termino = '',
+            desarrolladora,
+            calificacionMin,
+            calificacionMax,
+            pagina = 1,
+            limite = 20,
+            orden = 'titulo',
+            direccion = 'ASC'
+        } = req.query;
+
+        const numeroPagina = Math.max(1, Number.parseInt(pagina, 10) || 1);
+        const limiteResultados = Math.min(
+            100,
+            Math.max(1, Number.parseInt(limite, 10) || 20)
+        );
+
+        const ordenesPermitidos = [
+            'titulo',
+            'calificacion',
+            'fecha_lanzamiento',
+            'desarrolladora'
+        ];
+
+        const campoOrden = ordenesPermitidos.includes(orden)
+            ? orden
+            : 'titulo';
+
+        const direccionOrden = direccion.toUpperCase() === 'DESC'
+            ? 'DESC'
+            : 'ASC';
+
+        const where = {};
+
+        if (termino.trim()) {
+            where.titulo = {
+                [Op.iLike]: `%${termino.trim()}%`
+            };
+        }
+
+        if (desarrolladora) {
+            where.desarrolladora = {
+                [Op.iLike]: `%${desarrolladora}%`
+            };
+        }
+
+        if (calificacionMin !== undefined || calificacionMax !== undefined) {
+            where.calificacion = {};
+
+            if (calificacionMin !== undefined) {
+                where.calificacion[Op.gte] = Number(calificacionMin);
+            }
+
+            if (calificacionMax !== undefined) {
+                where.calificacion[Op.lte] = Number(calificacionMax);
+            }
+        }
+
+        const resultado = await Juego.findAndCountAll({
+            where,
+            limit: limiteResultados,
+            offset: (numeroPagina - 1) * limiteResultados,
+            order: [[campoOrden, direccionOrden]]
         });
 
-        //lo mandamos al Frontend
-        res.json({ status: '1', data: juegoNuevo });
-
+        res.json({
+            status: '1',
+            data: resultado.rows,
+            paginacion: {
+                total: resultado.count,
+                pagina: numeroPagina,
+                limite: limiteResultados,
+                totalPaginas: Math.ceil(resultado.count / limiteResultados)
+            }
+        });
     } catch (error) {
-        console.error('Error en getDetalleJuego:', error);
-        res.status(500).json({ status: '0', msg: 'Error procesando el detalle del juego.' });
+        console.error('Error en búsqueda avanzada:', error);
+        res.status(500).json({
+            status: '0',
+            msg: 'Error al realizar la búsqueda.'
+        });
     }
 };
 

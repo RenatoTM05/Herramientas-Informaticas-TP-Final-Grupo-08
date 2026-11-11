@@ -63,9 +63,9 @@ export class HomeComponent implements OnInit {
 
   cargarJuegosDestacados() {
     this.juegosService.obtenerTodosLosJuegos().subscribe({
-      next: (datosQueLlegan: any) => {
-        let historialJuegos = datosQueLlegan.data || datosQueLlegan || [];
-        this.juegosDestacados = historialJuegos.reverse().slice(0, 5);
+      next: (datos: any) => {
+        const juegos = datos.data || datos || [];
+        this.juegosDestacados = juegos.slice(0, 5);
         this.cdr.detectChanges();
       },
       error: (error: any) => {
@@ -111,9 +111,8 @@ seleccionarSugerencia(juego: any) {
   }
 
   // --- NUEVA FUNCIÓN PARA LAS TARJETAS DEL CATÁLOGO ---
-    verDetalle(id: number) {
-    console.log('ID que viaja al detalle:', id); // Log para ver el ID
-    this.router.navigate(['/JuegoDetalle', id]);
+  verDetalle(id: number) {
+    this.router.navigate(['/juego', id]);
   }
 
 // --- NUEVA FUNCIÓN PARA LAS TARJETAS DEL CATÁLOGO ---

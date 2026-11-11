@@ -15,9 +15,11 @@
     
     <div class="row">
       <div class="col-md-4 mb-4 text-center">
-        <img *ngIf="juego.imagen_portada" [src]="juego.imagen_portada" alt="Portada de {{ juego.titulo }}" class="img-fluid rounded shadow-lg" style="max-height: 500px; object-fit: cover;">
-        <div *ngIf="!juego.imagen_portada" class="bg-secondary text-white rounded p-5 d-flex align-items-center justify-content-center h-100 shadow-lg">
-          Sin imagen
+        <img
+        [src]="juego.imagen_portada || 'assets/placeholder.jpg'"
+        alt="Portada de {{ juego.titulo }}"
+        class="img-fluid rounded shadow-lg"
+        style="max-height: 500px; object-fit: cover;">
         </div>
       </div>
       
@@ -67,8 +69,8 @@
     <div *ngIf="juego.juegos_similares?.length > 0" class="mt-5">
       <h3 class="fw-bold mb-3">Juegos Similares</h3>
       <div class="d-flex overflow-auto gap-3 py-3" style="scrollbar-width: thin;">
-        <div *ngFor="let sim of juego.juegos_similares" class="card shadow-sm flex-shrink-0" style="width: 12rem; cursor: pointer;" [routerLink]="['/juego/detalle', sim.id]">
-          <img [src]="sim.imagen_portada || 'assets/no-image.jpg'" class="card-img-top" alt="{{ sim.titulo }}" style="height: 250px; object-fit: cover;">
+        <div *ngFor="let sim of juego.juegos_similares" class="card shadow-sm flex-shrink-0" style="width: 12rem; cursor: pointer;" [routerLink]="['/juego', sim.id]">
+          <img [src]="sim.imagen_portada || 'assets/placeholder.jpg'" class="card-img-top" alt="{{ sim.titulo }}" style="height: 250px; object-fit: cover;">
           <div class="card-body p-2">
             <h6 class="card-title text-center text-truncate m-0" title="{{ sim.titulo }}">{{ sim.titulo }}</h6>
           </div>
