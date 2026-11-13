@@ -167,6 +167,23 @@ services:
           memory: 512M
 
   # ===========================================================================
+  # HU-13 | Cloudflare Tunnel hacia el frontend (sin publicar puertos entrantes)
+  # Requiere un túnel creado en Cloudflare y su token en el entorno.
+  # ===========================================================================
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: gamer_cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      frontend:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  # ===========================================================================
   # HU-15 | GLPI Database (MariaDB 10.11) - Mesa de Ayuda ITIL
   # ===========================================================================
   glpi-db:
