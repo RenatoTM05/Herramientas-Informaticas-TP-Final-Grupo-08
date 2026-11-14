@@ -51,10 +51,7 @@ SELECT
         genero,
         genero2
     ),
-    CASE
-        WHEN i % 4 = 0 THEN 'dQw4w9WgXcQ'
-        ELSE NULL
-    END,
+    'JSRtYpNRoN0',
     (2000 + (i % 25))::TEXT || '-' ||
         LPAD((1 + (i % 12))::TEXT, 2, '0') || '-' ||
         LPAD((1 + (i % 28))::TEXT, 2, '0'),
