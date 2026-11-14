@@ -167,16 +167,23 @@ services:
           memory: 512M
 
   # ===========================================================================
-  # HU-13 | Cloudflare Tunnel hacia el frontend (sin publicar puertos entrantes)
-  # Requiere un túnel creado en Cloudflare y su token en el entorno.
+  # HU-13 | Tailscale Funnel hacia el frontend
+  # Publica HTTPS mediante Funnel, sin abrir puertos entrantes en el router.
   # ===========================================================================
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: gamer_cloudflared
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: gamer_tailscale
+    hostname: gamer-frontend
     restart: unless-stopped
-    command: tunnel --no-autoupdate run
     environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
+      TS_AUTH_ONCE: "true"
+      TS_STATE_DIR: /var/lib/tailscale
+    volumes:
+      - tailscale_state:/var/lib/tailscale
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
     depends_on:
       frontend:
         condition: service_healthy
@@ -243,6 +250,8 @@ volumes:
     name: glpi_db_data
   glpi_data:
     name: glpi_data
+  tailscale_state:
+    name: gamer_tailscale_state
 
 # =============================================================================
 # Redes bridge internas segmentadas (Seguridad y Microsegmentación)
