@@ -53,21 +53,45 @@ resenaCtrl.createResena = async (req, res) => {
 resenaCtrl.getResenasByJuego = async (req, res) => {
     try {
         const { juegoId } = req.params;
-        const resenas = await Resena.findAll({
+
+        const pagina = Math.max(parseInt(req.query.pagina) || 1, 1);
+        const limite = Math.min(Math.max(parseInt(req.query.limite) || 10, 1), 50);
+        const offset = (pagina - 1) * limite;
+
+        const { count, rows } = await Resena.findAndCountAll({
             where: { juegoId },
+            attributes: ['id', 'juegoId', 'loginId', 'texto', 'likes', 'createdAt'],
             include: [
-                { 
-                    model: Login, 
-                    as: 'usuario', // Usamos el alias que definimos en index.js
-                    attributes: ['id', 'username', 'nombre', 'foto'] // Excluimos datos sensibles
-                },
+                {
+                    model: Login,
+                    as: 'usuario',
+                    attributes: ['id', 'username', 'nombre', 'foto']
+                }
             ],
-            order: [['likes', 'DESC']]
+            order: [
+                ['likes', 'DESC'],
+                ['createdAt', 'DESC']
+            ],
+            limit: limite,
+            offset: offset
         });
-        res.json(resenas);
+
+        res.json({
+            status: '1',
+            data: rows,
+            total: count,
+            pagina,
+            limite,
+            totalPaginas: Math.ceil(count / limite)
+        });
+
     } catch (error) {
         console.error(error);
-        res.status(500).json({ status: '0', msg: 'Error al obtener reseñas', error: error.message });
+        res.status(500).json({
+            status: '0',
+            msg: 'Error al obtener reseñas',
+            error: error.message
+        });
     }
 };
 
