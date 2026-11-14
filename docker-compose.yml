@@ -173,14 +173,16 @@ services:
   tailscale:
     image: tailscale/tailscale:latest
     container_name: gamer_tailscale
-    hostname: gamer-frontend
+    hostname: gamer-frontend-${COMPUTERNAME:-equipo}
     restart: unless-stopped
     environment:
       TS_AUTHKEY: ${TS_AUTHKEY:-}
       TS_AUTH_ONCE: "true"
       TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/serve.json
     volumes:
       - tailscale_state:/var/lib/tailscale
+      - ./tailscale:/config:ro
     cap_add:
       - NET_ADMIN
       - NET_RAW
