@@ -18,6 +18,15 @@ export class JuegoDetalle implements OnInit {
   error = false;
   trailerUrl: SafeResourceUrl | null = null;
 
+    // Reseñas
+  resenas: any[] = [];
+  paginaResenas = 1;
+  limiteResenas = 10;
+  totalResenas = 0;
+  totalPaginasResenas = 0;
+  cargandoResenas = false;
+  errorResenas = false;
+
   constructor(
     private route: ActivatedRoute,
     private juegosService: JuegosService,
@@ -47,6 +56,7 @@ export class JuegoDetalle implements OnInit {
       next: (res: any) => {
         if (res.status === '1' && res.data) {
           this.juego = res.data;
+          this.cargarResenas(Number(id));
 
           if (this.juego.trailer_id) {
             const url = `https://www.youtube.com/embed/${this.juego.trailer_id}`;
@@ -68,4 +78,32 @@ export class JuegoDetalle implements OnInit {
       }
     });
   }
+
+    cargarResenas(juegoId: number, pagina: number = 1): void {
+    this.cargandoResenas = true;
+    this.errorResenas = false;
+
+    this.juegosService.obtenerResenas(
+      juegoId,
+      pagina,
+      this.limiteResenas
+    ).subscribe({
+      next: (res: any) => {
+        this.resenas = res.data || [];
+        this.paginaResenas = res.pagina;
+        this.totalResenas = res.total;
+        this.totalPaginasResenas = res.totalPaginas;
+
+        this.cargandoResenas = false;
+        this.cdr.detectChanges();
+      },
+      error: (err: any) => {
+        console.error('Error al cargar reseñas:', err);
+        this.errorResenas = true;
+        this.cargandoResenas = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
 }

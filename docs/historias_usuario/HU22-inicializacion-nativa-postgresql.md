@@ -1,131 +1,98 @@
-Historia de Usuario 22 (HU-22): Inicialización Nativa de PostgreSQL mediante Docker
-1. Descripción General
-- ID: HU-22
-- Título: Automatizar la inicialización del esquema de la base de datos mediante scripts SQL independientes del backend.
-- Sprint: Sprint 2 (Fase 2).
-- Objetivo: Automatizar la creación del esquema relacional y la carga inicial de datos utilizando el mecanismo nativo de inicialización de la imagen oficial de PostgreSQL, eliminando la creación automática de tablas desde Sequelize y evitando la necesidad de un contenedor auxiliar para ejecutar los scripts SQL.
-La solución busca que, al iniciar el proyecto con Docker Compose y utilizando un volumen de PostgreSQL vacío, la propia instancia de PostgreSQL cree las tablas y cargue los datos iniciales antes de que el backend comience a operar.
-2. Criterios de Aceptación
-1. [x] Eliminar la sincronización automática del esquema mediante sequelize.sync({ alter: true }).
-2. [x] Mantener Sequelize como herramienta de conexión y acceso a la base de datos, sin utilizarlo para modificar automáticamente la estructura.
-3. [x] Configurar la inicialización nativa de PostgreSQL mediante el directorio /docker-entrypoint-initdb.d/.
-4. [x] Ejecutar primero el DDL (01_schema_init.sql) y luego el script de carga masiva (02_massive_seed_6M.sql).
-5. [x] Evitar la creación de un servicio o contenedor auxiliar para ejecutar los scripts.
-6. [x] Configurar el healthcheck de PostgreSQL para que los servicios dependientes esperen a que la inicialización haya finalizado.
-7. [x] Hacer que el backend verifique la conexión con PostgreSQL antes de comenzar a escuchar peticiones.
-8. [x] Validar el procedimiento desde un volumen de datos vacío y comprobar la creación de las tablas y la carga de los registros.
-3. Evidencia Técnica e Implementación
-A. Separación entre conexión y creación del esquema
-Anteriormente, el backend utilizaba sequelize.sync({ alter: true }) para sincronizar los modelos de Sequelize con las tablas de PostgreSQL. Esta modalidad permite que Sequelize intente crear o modificar tablas automáticamente al iniciar la aplicación.
+# Historia de Usuario 22 (HU-22): Automatización de la Inicialización de PostgreSQL mediante Docker
 
-Para esta historia de usuario se eliminó ese mecanismo. El archivo backend/config/database.js ahora se limita a configurar y exportar la instancia de Sequelize.
+## 1. Descripción General
 
-En backend/index.js, antes de iniciar el servidor HTTP, se ejecuta sequelize.authenticate(). Esta operación comprueba que el backend puede conectarse a la base de datos, pero no crea ni modifica tablas.
+- **ID:** HU-22
+- **Título:** Automatización de la inicialización de la base de datos PostgreSQL.
+- **Objetivo:** Automatizar la creación del esquema relacional y la carga inicial de datos de PostgreSQL mediante los mecanismos nativos de Docker, evitando la ejecución manual de scripts y asegurando que los servicios dependientes se inicien cuando la base de datos esté disponible.
 
-Si la conexión es correcta, el backend inicia el servidor. Si falla, muestra el error y termina el proceso con un código de salida distinto de cero.
+---
 
-Esta separación deja dos responsabilidades claras:
-- PostgreSQL y los scripts SQL: crean la estructura y cargan los datos iniciales.
-- Sequelize: permite que el backend se conecte y trabaje con las tablas existentes.
-B. Inicialización nativa mediante la imagen oficial de PostgreSQL
-Se configuró el servicio postgres de docker-compose.yml para montar directamente los scripts SQL dentro del directorio especial:
+## 2. Implementación
 
-/docker-entrypoint-initdb.d/
+### A. Inicialización automática mediante PostgreSQL
 
-Los archivos se montan de forma individual y en modo de solo lectura:
-- db-scripts/init/01_schema_init.sql → /docker-entrypoint-initdb.d/01_schema_init.sql
-- db-scripts/seeders/02_massive_seed_6M.sql → /docker-entrypoint-initdb.d/02_massive_seed_6M.sql
-La imagen oficial de PostgreSQL incluye un proceso de inicialización en su punto de entrada. Cuando detecta que el directorio de datos está vacío, inicializa el motor y ejecuta los archivos compatibles que encuentra en /docker-entrypoint-initdb.d/.
+Se configuró el contenedor de PostgreSQL para ejecutar automáticamente los scripts SQL durante la primera inicialización de un volumen de datos vacío.
 
-Los nombres de los archivos permiten establecer el orden alfabético de ejecución: primero 01_schema_init.sql y después 02_massive_seed_6M.sql.
+Para ello, los archivos se montaron en el directorio nativo `/docker-entrypoint-initdb.d/`:
 
-Por lo tanto, el segundo script encuentra las tablas creadas por el primero y puede insertar los registros respetando las relaciones y restricciones definidas.
+1. `01_schema_init.sql`: crea la estructura relacional de la base de datos.
+2. `02_massive_seed_6M.sql`: realiza la carga inicial de datos de prueba.
 
-Importante: este mecanismo se ejecuta durante la inicialización de un directorio de datos vacío. No vuelve a ejecutar los scripts cada vez que se reinicia un contenedor si el volumen ya contiene una base inicializada. Para probar nuevamente una inicialización desde cero, es necesario eliminar el volumen de PostgreSQL y volver a levantar el proyecto. Esto elimina los datos persistidos en ese volumen.
-C. Creación del esquema mediante DDL
-El archivo 01_schema_init.sql contiene las instrucciones CREATE TABLE necesarias para crear las seis tablas utilizadas por el sistema:
-- logins
-- "Usuarios"
-- juegos
-- resenas
-- accesos
-- audit_logs
-El esquema define las claves primarias, los tipos de datos, los campos obligatorios, los valores predeterminados y las relaciones mediante claves foráneas.
+PostgreSQL ejecuta los scripts de ese directorio durante la inicialización del directorio de datos, respetando el orden alfabético de sus nombres.
 
-También se respetan los nombres de columnas sensibles a mayúsculas y minúsculas que utiliza Sequelize, como "createdAt", "updatedAt", "loginId" y "juegoId". En PostgreSQL, los identificadores escritos entre comillas dobles conservan exactamente su capitalización.
+Los archivos se incorporaron mediante volúmenes de Docker, sin necesidad de ejecutar manualmente las consultas desde pgAdmin.
 
-La tabla "Usuarios" conserva su nombre con mayúscula inicial, correspondiente a la pluralización que utiliza el modelo Usuario en el proyecto. Su campo "loginId" es único y referencia a logins(id), reflejando la relación uno a uno configurada entre ambos modelos.
+Es importante destacar que este mecanismo se ejecuta cuando el directorio de datos de PostgreSQL está vacío. Si el volumen ya contiene una base de datos inicializada, los scripts no vuelven a ejecutarse automáticamente en cada arranque.
 
-Las relaciones de las reseñas también quedan definidas mediante claves foráneas:
-- resenas."juegoId" referencia a juegos(id).
-- resenas."loginId" referencia a logins(id).
-Las restricciones ON DELETE CASCADE hacen que, al eliminar un registro referenciado, PostgreSQL elimine también los registros dependientes correspondientes.
+### B. Coordinación de servicios mediante Docker Compose
 
-El script no contiene instrucciones DROP TABLE: la creación está pensada para una base nueva, no para borrar y reconstruir tablas en una base persistente.
-D. Carga masiva de datos
-El archivo 02_massive_seed_6M.sql genera datos de prueba utilizando generate_series() e instrucciones INSERT INTO ... SELECT.
+Se configuró Docker Compose para coordinar el inicio de PostgreSQL y los servicios que dependen de la base de datos.
 
-En lugar de enviar millones de inserciones individuales desde una aplicación, PostgreSQL genera e inserta los registros directamente mediante operaciones orientadas a conjuntos.
+Se incorporó un `healthcheck` basado en `pg_isready`, que permite comprobar si PostgreSQL está disponible para aceptar conexiones.
 
-La distribución de los datos es la siguiente:
-Tabla	Registros insertados
-juegos	5.000
-logins	100.000
-"Usuarios"	100.000
-resenas	5.800.000
-accesos	50.000
-audit_logs	45.000
-Total	6.100.000
+También se configuró un período de inicio (`start_period`) de 15 minutos para contemplar el tiempo requerido por la inicialización y la carga masiva de datos.
+
+Los servicios dependientes utilizan la condición `service_healthy` en `depends_on`, evitando que intenten conectarse a PostgreSQL antes de que se encuentre disponible.
+
+De esta manera, Docker Compose administra el orden de inicio y la disponibilidad de los servicios sin depender únicamente del tiempo transcurrido desde que se inicia el contenedor.
+
+### C. Integración con Sequelize
+
+Se modificó la inicialización del backend para evitar que Sequelize intente crear o alterar automáticamente la estructura de la base de datos.
+
+Se eliminó el uso de `sequelize.sync({ alter: true })` como mecanismo de creación de tablas.
+
+En su lugar, se utiliza `sequelize.authenticate()` para comprobar que la conexión con PostgreSQL se encuentre disponible antes de iniciar el servidor Express.
+
+Sequelize continúa utilizándose para ejecutar consultas y operaciones sobre los modelos del sistema, mientras que la definición de la estructura de la base de datos queda a cargo de los scripts SQL.
+
+### D. Verificación de la inicialización
+
+Se realizó una inicialización de prueba utilizando un volumen de datos vacío para comprobar que PostgreSQL ejecutara los scripts automáticamente y que los servicios dependientes pudieran iniciar correctamente.
+
+Una vez finalizada la inicialización, se verificó la disponibilidad de los contenedores y la presencia de los registros en las tablas correspondientes.
+
+La carga inicial contempla las siguientes cantidades:
+
+| Tabla | Registros |
+|---|---:|
+| juegos | 5.000 |
+| logins | 10.000 |
+| Usuarios | 10.000 |
+| resenas | 6.000.000 |
+| accesos | 10.000 |
+| audit_logs | 10.000 |
+| **Total** | **6.045.000** |
+
+### E. Métricas de inicialización
+
+Durante la prueba de inicialización completa mediante Docker Compose se registró un tiempo aproximado de:
+
+- **Tiempo total observado:** 622,9 segundos (10 minutos y 23 segundos).
+
+![Tiempo de carga de scripts](../images/hu22/hu06_captura_scripts_automatizados.png)
 
 
-El archivo utiliza funciones y expresiones de PostgreSQL para generar títulos, nombres, apellidos, correos, fechas, calificaciones, accesos y registros de auditoría simulados.
+Esta medición corresponde al proceso de inicialización de PostgreSQL y al arranque de los servicios dependientes. Por lo tanto, no representa exclusivamente el tiempo de ejecución de los scripts SQL.
 
-También aplica dos ajustes durante la carga:
-- maintenance_work_mem = '512MB': establece el límite de memoria de trabajo para determinadas operaciones de mantenimiento que pueden utilizarla.
-- synchronous_commit = OFF: reduce la espera por la confirmación de escritura en disco de cada transacción de la sesión durante la carga. Se vuelve a establecer en ON al finalizar el script.
-Finalmente, se ejecuta ANALYZE sobre las seis tablas. Esto actualiza estadísticas que el optimizador de PostgreSQL utiliza para estimar costos y elegir planes de ejecución de consultas.
+---
 
-Tiempo registrado para la inicialización y carga de PostgreSQL: 616 segundos (10 minutos y 16 segundos).
-E. Orden de arranque y comprobación de disponibilidad
-El servicio postgres cuenta con un healthcheck basado en pg_isready. La comprobación se realiza contra 127.0.0.1 para verificar que PostgreSQL acepta conexiones TCP, en lugar de detectar únicamente el servidor temporal que puede utilizarse durante la inicialización.
+## 3. Criterios de aceptación
 
-Se configuró un período de inicio amplio (start_period: 15m) para contemplar el tiempo que puede requerir la carga masiva antes de que Docker considere fallidos los controles de salud.
+- [x] Scripts SQL integrados al mecanismo nativo de inicialización de PostgreSQL.
+- [x] Ejecución automática de los scripts durante la primera inicialización de un volumen vacío.
+- [x] Configuración del `healthcheck` de PostgreSQL.
+- [x] Coordinación del inicio de los servicios dependientes mediante Docker Compose.
+- [x] Validación de la conexión del backend mediante Sequelize.
+- [x] Verificación de la inicialización y disponibilidad de los servicios.
 
-Los servicios que necesitan la base de datos utilizan la dependencia service_healthy. De esta manera, Docker Compose espera a que PostgreSQL figure como saludable antes de iniciar esos servicios.
+---
 
-Además, el backend ejecuta sequelize.authenticate() antes de llamar a app.listen(). Así se comprueba la conexión efectiva desde la aplicación antes de aceptar peticiones.
-F. Validación realizada
-La prueba se realizó eliminando previamente los volúmenes persistentes del entorno y levantando nuevamente el proyecto con Docker Compose.
+## 4. Resultado
 
-Durante la ejecución se verificó que:
-1. PostgreSQL inicializara el directorio de datos.
-2. Se ejecutara 01_schema_init.sql y se crearan las seis tablas.
-3. Se ejecutara 02_massive_seed_6M.sql y se completara la carga masiva.
-4. PostgreSQL y el backend alcanzaran el estado healthy.
-5. Las tablas contuvieran las cantidades de registros esperadas.
-La inicialización se realizó utilizando el servicio PostgreSQL existente en el Compose, sin agregar un contenedor auxiliar o servicio db-seeder.
+La historia de usuario quedó implementada. La inicialización de PostgreSQL se encuentra automatizada mediante los mecanismos nativos de Docker, permitiendo crear el esquema relacional y cargar los datos iniciales sin intervención manual.
 
-Como evidencia visual se incorpora una única captura de la salida de docker compose ps, donde se observa el estado de los contenedores levantados y la disponibilidad de los servicios.
+La configuración del `healthcheck` y de las dependencias entre servicios permite coordinar el inicio de la aplicación, mientras que Sequelize verifica la disponibilidad de la conexión antes de iniciar el backend.
 
-> ![Contenedores inicializados y funcionando](../images/hu22/hu22_captura_contenedores_inicializados.png)
-
-
-4. Consideraciones Técnicas
-¿Por qué los scripts no se ejecutan en cada reinicio?
-PostgreSQL guarda sus datos en el volumen montado en /var/lib/postgresql/data. La imagen oficial detecta si ese directorio ya fue inicializado. Si encuentra una base existente, no vuelve a ejecutar los scripts de /docker-entrypoint-initdb.d/.
-
-Esto evita que cada reinicio intente volver a crear tablas o insertar nuevamente millones de registros.
-¿Qué sucede si falla un script durante la inicialización?
-Los scripts de inicialización no deben considerarse un mecanismo de migraciones recurrentes. Si una inicialización desde cero falla a mitad de camino, no conviene limitarse a reiniciar el contenedor esperando que el proceso continúe desde donde quedó: el directorio de datos puede haber quedado parcialmente inicializado y los scripts no necesariamente se volverán a ejecutar.
-
-Para repetir una prueba de inicialización desde cero, primero hay que detener el entorno y eliminar el volumen correspondiente, teniendo presente que esto borra los datos almacenados. Luego se puede levantar nuevamente el proyecto.
-¿Por qué se mantiene sequelize.authenticate()?
-Eliminar sequelize.sync() no significa eliminar Sequelize. El backend sigue necesitando conectarse a PostgreSQL para ejecutar sus consultas y utilizar sus modelos. authenticate() verifica esa conexión sin asumir la responsabilidad de crear o alterar el esquema.
-5. Conclusión
-La HU-22 permitió trasladar la responsabilidad de creación del esquema y carga inicial de datos desde el backend hacia el mecanismo nativo de inicialización de la imagen oficial de PostgreSQL.
-
-La solución ejecuta el DDL y el seeder en el orden esperado, aprovecha el volumen persistente para evitar repetir la carga en cada reinicio y coordina el arranque de los servicios mediante controles de salud.
-
-La validación desde un volumen limpio confirmó la creación de las seis tablas y la inserción de 6.100.000 registros. La inicialización se realizó utilizando el servicio PostgreSQL existente, sin necesidad de incorporar un contenedor auxiliar para la carga.
-
-De esta manera, el entorno queda preparado para levantar el proyecto mediante Docker Compose con una base de datos inicializada y disponible para el backend.
+De esta manera, el entorno puede reproducir la inicialización completa de la base de datos a partir de un volumen vacío, manteniendo separadas las responsabilidades de definición del esquema, carga de datos y ejecución de la aplicación.
