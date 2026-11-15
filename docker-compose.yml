@@ -213,6 +213,53 @@ services:
     networks:
       - glpi-network
 
+    # ===========================================================================
+  # HU-17 | Nextcloud Database (PostgreSQL 16) - Base dedicada para documentos
+  # ===========================================================================
+  nextcloud-db:
+    image: postgres:16-alpine
+    container_name: gamer_nextcloud_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${NEXTCLOUD_DB_NAME:-nextcloud_db}
+      POSTGRES_USER: ${NEXTCLOUD_DB_USER:-nextcloud_user}
+      POSTGRES_PASSWORD: ${NEXTCLOUD_DB_PASSWORD}
+      TZ: ${TZ:-America/Argentina/Buenos_Aires}
+    volumes:
+      - nextcloud_db_data:/var/lib/postgresql/data
+    networks:
+      - nextcloud-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NEXTCLOUD_DB_USER:-nextcloud_user} -d ${NEXTCLOUD_DB_NAME:-nextcloud_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================================================
+  # HU-17 | Nextcloud Server - Repositorio Documental Centralizado
+  # ===========================================================================
+  nextcloud:
+    image: nextcloud:apache
+    container_name: gamer_nextcloud
+    restart: unless-stopped
+    depends_on:
+      nextcloud-db:
+        condition: service_healthy
+    ports:
+      - "${NEXTCLOUD_PORT:-8085}:80"
+    environment:
+      POSTGRES_HOST: nextcloud-db
+      POSTGRES_DB: ${NEXTCLOUD_DB_NAME:-nextcloud_db}
+      POSTGRES_USER: ${NEXTCLOUD_DB_USER:-nextcloud_user}
+      POSTGRES_PASSWORD: ${NEXTCLOUD_DB_PASSWORD}
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER:-admin_nextcloud}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      NEXTCLOUD_TRUSTED_DOMAINS: "localhost 127.0.0.1 nextcloud"
+    volumes:
+      - nextcloud_data:/var/www/html
+    networks:
+      - nextcloud-network
+
 # =============================================================================
 # Volúmenes nombrados con persistencia garantizada
 # =============================================================================
@@ -226,6 +273,10 @@ volumes:
     name: glpi_db_data
   glpi_data:
     name: glpi_data
+  nextcloud_data:
+    name: gamer_nextcloud_data
+  nextcloud_db_data:
+    name: gamer_nextcloud_db_data
 
 # =============================================================================
 # Redes bridge internas segmentadas (Seguridad y Microsegmentación)
@@ -239,4 +290,7 @@ networks:
     driver: bridge
   glpi-network:
     name: glpi-network
+    driver: bridge
+  nextcloud-network:
+    name: gamer_nextcloud_network
     driver: bridge
