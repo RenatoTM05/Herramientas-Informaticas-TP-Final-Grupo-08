@@ -1,0 +1,44 @@
+scope: gamer-postgres
+
+restapi:
+  listen: 0.0.0.0:8008
+
+etcd3:
+  hosts: [etcd-1:2379, etcd-2:2379, etcd-3:2379]
+
+bootstrap:
+  initdb:
+    - encoding: UTF8
+    - locale: C
+    - data-checksums
+    - auth-host: scram-sha-256
+    - auth-local: scram-sha-256
+  post_bootstrap: /usr/local/bin/bootstrap.sh
+  dcs:
+    ttl: 20
+    loop_wait: 5
+    retry_timeout: 5
+    check_timeline: true
+    synchronous_mode: true
+    synchronous_mode_strict: true
+    synchronous_node_count: 1
+    postgresql:
+      use_slots: true
+      use_pg_rewind: true
+      parameters:
+        wal_level: replica
+        max_wal_senders: 10
+        max_replication_slots: 10
+        max_slot_wal_keep_size: 1GB
+        archive_mode: "off"
+        password_encryption: scram-sha-256
+      pg_hba:
+        - local all all scram-sha-256
+        - host replication replicador all scram-sha-256
+        - host all all all scram-sha-256
+
+postgresql:
+  listen: 0.0.0.0:5432
+  data_dir: /var/lib/postgresql/data/pgdata
+  bin_dir: /usr/lib/postgresql/16/bin
+  pgpass: /tmp/patroni.pgpass

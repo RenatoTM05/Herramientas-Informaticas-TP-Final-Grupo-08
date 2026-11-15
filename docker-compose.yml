@@ -1,37 +1,127 @@
+x-etcd-environment: &etcd-environment
+  ETCD_DATA_DIR: /etcd-data
+  ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+  ETCD_LISTEN_PEER_URLS: http://0.0.0.0:2380
+  ETCD_INITIAL_CLUSTER: etcd-1=http://etcd-1:2380,etcd-2=http://etcd-2:2380,etcd-3=http://etcd-3:2380
+  ETCD_INITIAL_CLUSTER_TOKEN: gamer-postgres
+
+x-etcd-node: &etcd-node
+  image: quay.io/coreos/etcd:v3.6.6
+  entrypoint: ["/usr/local/bin/etcd"]
+  restart: unless-stopped
+  networks: [cluster-control]
+
+x-patroni-environment: &patroni-environment
+  POSTGRES_DB: ${POSTGRES_DB:-tpfinalbackend}
+  PATRONI_SUPERUSER_USERNAME: ${POSTGRES_USER:-gamer_admin}
+  PATRONI_SUPERUSER_PASSWORD: ${POSTGRES_PASSWORD}
+  PATRONI_REPLICATION_USERNAME: replicador
+  PATRONI_REPLICATION_PASSWORD: ${PATRONI_REPLICATION_PASSWORD:-}
+  TZ: ${TZ:-America/Argentina/Buenos_Aires}
+
+x-patroni-node: &patroni-node
+  build: ./db-scripts/cluster
+  image: gamer-patroni:pg16
+  restart: unless-stopped
+  stop_grace_period: 30s
+  shm_size: 256m
+  depends_on: [etcd-1, etcd-2, etcd-3]
+  networks: [db-network, cluster-control]
+
 services:
   # ===========================================================================
-  # HU-04 | PostgreSQL 16 - Motor Relacional con persistencia y healthcheck
+  # HU-09/10 | Entrada SQL estable. "postgres" es el alias usado por la app.
   # ===========================================================================
   postgres:
-    image: postgres:16-alpine
-    container_name: gamer_postgres
+    image: haproxy:3.2-alpine
+    container_name: gamer-db-proxy
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-tpfinalbackend}
-      POSTGRES_USER: ${POSTGRES_USER:-gamer_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
-      TZ: ${TZ:-America/Argentina/Buenos_Aires}
     ports:
-      # Expuesto solo en localhost para seguridad
       - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./db-scripts/init/01_schema_init.sql:/docker-entrypoint-initdb.d/01_schema_init.sql:ro
-      - ./db-scripts/seeders/02_massive_seed_6M.sql:/docker-entrypoint-initdb.d/02_massive_seed_6M.sql:ro
-      - ./db-scripts/optimizations/create_indexes.sql:/docker-entrypoint-initdb.d/03_create_indexes.sql:ro
-    networks:
-      - db-network
+      - ./db-scripts/cluster/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on: [pg-node-1, pg-node-2, pg-node-3]
+    networks: [db-network]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:-gamer_admin} -d ${POSTGRES_DB:-tpfinalbackend}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8404/health"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
       start_period: 15m
-    deploy:
-      resources:
-        limits:
-          memory: 2G
+
+  # Cada nodo puede asumir el rol de primario. Los números identifican nodos.
+  pg-node-1:
+    <<: *patroni-node
+    container_name: gamer-pg-node-1
+    environment:
+      <<: *patroni-environment
+      PATRONI_NAME: pg-node-1
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pg-node-1:5432
+      PATRONI_RESTAPI_CONNECT_ADDRESS: pg-node-1:8008
+    volumes:
+      - pg-cluster-node-1:/var/lib/postgresql/data
+      - &init-schema ./db-scripts/init/01_schema_init.sql:/sql/01_schema_init.sql:ro
+      - &init-seed ./db-scripts/seeders/02_massive_seed_6M.sql:/sql/02_massive_seed_6M.sql:ro
+      - &init-indexes ./db-scripts/optimizations/create_indexes.sql:/sql/03_create_indexes.sql:ro
+
+  pg-node-2:
+    <<: *patroni-node
+    container_name: gamer-pg-node-2
+    environment:
+      <<: *patroni-environment
+      PATRONI_NAME: pg-node-2
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pg-node-2:5432
+      PATRONI_RESTAPI_CONNECT_ADDRESS: pg-node-2:8008
+    volumes:
+      - pg-cluster-node-2:/var/lib/postgresql/data
+      - *init-schema
+      - *init-seed
+      - *init-indexes
+
+  pg-node-3:
+    <<: *patroni-node
+    container_name: gamer-pg-node-3
+    environment:
+      <<: *patroni-environment
+      PATRONI_NAME: pg-node-3
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pg-node-3:5432
+      PATRONI_RESTAPI_CONNECT_ADDRESS: pg-node-3:8008
+    volumes:
+      - pg-cluster-node-3:/var/lib/postgresql/data
+      - *init-schema
+      - *init-seed
+      - *init-indexes
+
+  # etcd guarda el liderazgo. Dos de sus tres miembros forman mayoría.
+  etcd-1:
+    <<: *etcd-node
+    container_name: gamer-etcd-1
+    environment:
+      <<: *etcd-environment
+      ETCD_NAME: etcd-1
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd-1:2379
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd-1:2380
+    volumes: [etcd-cluster-node-1:/etcd-data]
+
+  etcd-2:
+    <<: *etcd-node
+    container_name: gamer-etcd-2
+    environment:
+      <<: *etcd-environment
+      ETCD_NAME: etcd-2
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd-2:2379
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd-2:2380
+    volumes: [etcd-cluster-node-2:/etcd-data]
+
+  etcd-3:
+    <<: *etcd-node
+    container_name: gamer-etcd-3
+    environment:
+      <<: *etcd-environment
+      ETCD_NAME: etcd-3
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd-3:2379
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd-3:2380
+    volumes: [etcd-cluster-node-3:/etcd-data]
 
   # ===========================================================================
   # HU-07 | Respaldos lógicos automáticos de PostgreSQL
@@ -292,8 +382,12 @@ services:
 # =============================================================================
 volumes:
   backup-data:
-  pgdata:
-    name: gamer_pgdata
+  pg-cluster-node-1:
+  pg-cluster-node-2:
+  pg-cluster-node-3:
+  etcd-cluster-node-1:
+  etcd-cluster-node-2:
+  etcd-cluster-node-3:
   pgadmin_data:
     name: gamer_pgadmin_data
   glpi_db_data:
@@ -317,6 +411,8 @@ networks:
   db-network:
     name: gamer_db_network
     driver: bridge
+  cluster-control:
+    internal: true
   glpi-network:
     name: glpi-network
     driver: bridge
