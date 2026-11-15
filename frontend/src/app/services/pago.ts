@@ -6,8 +6,8 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class PagoService {
-  // La URL base de tu backend de Node.js
-  private URL_API = 'http://localhost:3000/api/pagos';
+  // La URL base de la API de pagos (relativa para soportar local y reverse proxy)
+  private URL_API = '/api/pagos';
 
   constructor(private http: HttpClient) { }
 

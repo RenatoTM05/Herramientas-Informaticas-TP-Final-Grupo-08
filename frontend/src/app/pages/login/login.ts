@@ -1,14 +1,14 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router'; // Importamos el enrutador para redirigir
+import { Router, RouterLink } from '@angular/router'; // Importamos el enrutador para redirigir
 import { AuthService } from '../../services/auth.service'; // Importamos tu nuevo servicio
 import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './login.html',
   styleUrls: ['./login.css']
 })
@@ -27,7 +27,7 @@ export class LoginComponent implements OnInit {
   }
 
   loguearConGoogle():void{
-    window.location.href ='http://localhost:3000/api/auth/google'
+    window.location.href = '/api/auth/google';
   }
 
   initForm(): void {
