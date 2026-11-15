@@ -67,14 +67,14 @@ La carga inicial contempla las siguientes cantidades:
 
 ### E. Métricas de inicialización
 
-Durante la prueba de inicialización completa mediante Docker Compose se registró un tiempo aproximado de:
+Durante las pruebas de inicialización completa mediante Docker Compose se registraron tiempos de entre 600 y 800 segundos aproximadamente (entre 10 y 13 minutos). La variación depende del hardware y de la carga del equipo en el que se ejecuta la inicialización.
 
-- **Tiempo total observado:** 622,9 segundos (10 minutos y 23 segundos).
+- **Rango observado:** 600 a 800 segundos.
+- **Medición de referencia (captura):** 622,9 segundos (10 minutos y 23 segundos).
 
 ![Tiempo de carga de scripts](../images/hu22/hu06_captura_scripts_automatizados.png)
 
-
-Esta medición corresponde al proceso de inicialización de PostgreSQL y al arranque de los servicios dependientes. Por lo tanto, no representa exclusivamente el tiempo de ejecución de los scripts SQL.
+Estas mediciones corresponden al proceso de inicialización de PostgreSQL y al arranque de los servicios dependientes. Por lo tanto, no representan exclusivamente el tiempo de ejecución de los scripts SQL.
 
 ---
 
