@@ -10,6 +10,8 @@ El servicio `tailscale` del `docker-compose.yml` se conecta a `app-network`, esp
 
 La clave de autenticación se lee desde `TS_AUTHKEY` en `.env`. La variable de referencia está vacía en `.env.example`; el secreto no se versiona. El archivo `tailscale/serve.json`, montado mediante `TS_SERVE_CONFIG`, configura automáticamente Funnel HTTPS para enviar las solicitudes a `http://frontend:80`. El hostname del tailnet se resuelve con `${TS_CERT_DOMAIN}` para que no haya que fijar el nombre del tailnet en el repositorio.
 
+El servidor Nginx del contenedor `frontend` actúa como Reverse Proxy interno (BFF) dentro de la red Docker (`app-network`), canalizando las llamadas a la API (`/api/`, `/juego/`, `/resenas/` y `/api-docs/`) de forma transparente hacia `http://backend:3000`. De este modo, los clientes externos acceden tanto al contenido estático de Angular como a los datos de la base de datos a través del mismo origen y túnel HTTPS, sin requerir la exposición directa del backend ni abrir puertos hacia bases de datos o servicios administrativos.
+
 ## Configuración inicial del equipo
 
 Un administrador debe configurar una sola vez el tailnet:

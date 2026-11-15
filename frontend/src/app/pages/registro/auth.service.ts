@@ -6,8 +6,8 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class AuthService {
-  // URL base modificada
-  private API_URL = 'http://localhost:3000/api/login';
+  // Endpoint de autenticación relativo para soportar local y reverse proxy
+  private API_URL = '/api/login';
 
   constructor(private http: HttpClient) {}
 

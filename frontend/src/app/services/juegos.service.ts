@@ -7,7 +7,7 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class JuegosService {
-  private baseUrl = 'http://localhost:3000/juego';
+  private baseUrl = '/juego';
 
   constructor(private http: HttpClient) { }
 
@@ -81,7 +81,7 @@ export class JuegosService {
       .set('limite', limite);
 
     return this.http.get(
-      `http://localhost:3000/resenas/juego/${juegoId}`,
+      `/resenas/juego/${juegoId}`,
       { params }
     );
   }
