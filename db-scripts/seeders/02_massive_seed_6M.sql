@@ -1,4 +1,3 @@
-
 -- =========================================================================
 -- Archivo: 02_massive_seed_6M.sql
 -- Descripción: Carga masiva optimizada con 6 millones de reseñas y datos
@@ -41,8 +40,8 @@ SELECT
     ' ambientada en un universo lleno de desafíos. ' ||
     'Desarrollá nuevas estrategias, descubrí escenarios y completá ' ||
     'misiones mientras avanzás en esta aventura.',
-    'https://placehold.co/264x352/1f2937/ffffff/png?text=' ||
-        replace(franquicia, ' ', '+'),
+    'https://placehold.co/264x352/' || color_portada || '/ffffff/png?text=' ||
+        replace(franquicia || ' ' || subtitulo, ' ', '+'),
     json_build_array(
         plataforma1,
         plataforma2
@@ -52,10 +51,10 @@ SELECT
         genero2
     ),
     'JSRtYpNRoN0',
-    (2000 + (i % 25))::TEXT || '-' ||
-        LPAD((1 + (i % 12))::TEXT, 2, '0') || '-' ||
-        LPAD((1 + (i % 28))::TEXT, 2, '0'),
-    50 + ((i * 37) % 51),
+    anio::TEXT || '-' ||
+        LPAD(mes::TEXT, 2, '0') || '-' ||
+        LPAD(dia::TEXT, 2, '0'),
+    calificacion,
     desarrolladora,
     json_build_array(
         'https://placehold.co/1280x720/1e293b/ffffff/png?text=Captura+' || i,
@@ -63,20 +62,20 @@ SELECT
     ),
     json_build_array(
         json_build_object(
-            'id', 1 + (i % 5000),
-            'titulo', 'Juego recomendado ' || (1 + (i % 5000)),
+            'id', similar_id,
+            'titulo', 'Juego recomendado ' || similar_id,
             'imagen_portada', 'https://placehold.co/264x352/png?text=Similar'
         )
     ),
     CASE
-        WHEN i % 3 = 0 THEN
+        WHEN r_dlc < 0.33 THEN
             json_build_array(
                 json_build_object('nombre', 'Contenido adicional ' || i)
             )
         ELSE '[]'::JSON
     END,
     CASE
-        WHEN i % 5 = 0 THEN
+        WHEN r_exp < 0.20 THEN
             json_build_array(
                 json_build_object('nombre', 'Expansión ' || i)
             )
@@ -86,7 +85,7 @@ SELECT
         'nombre', franquicia,
         'entrega', i
     ),
-    NOW() - ((i % 1000) * INTERVAL '1 day'),
+    NOW() - (random() * 1000) * INTERVAL '1 day',
     NOW()
 FROM (
     SELECT
@@ -96,7 +95,7 @@ FROM (
             'Dark', 'Legend of', 'Apex', 'Dragon', 'Silent',
             'Resident', 'Grand', 'Metal', 'God of', 'Elder',
             'Horizon', 'Mass', 'Dead', 'Battle', 'Tomb'
-        ])[1 + (i % 20)] AS franquicia,
+        ])[1 + floor(random() * 20)::INT] AS franquicia,
 
         (ARRAY[
             'Chronicles', 'Protocol', 'Odyssey', 'Strike', 'Arena',
@@ -104,36 +103,48 @@ FROM (
             'Frontier', 'Origins', 'Reborn', 'Awakening', 'Revolution',
             'Rising', 'Destiny', 'Remastered', 'Reckoning', 'Beyond',
             'Legends', 'Origins II', 'Infinity', 'Survivors', 'Ascension'
-        ])[1 + ((i / 20) % 25)] AS subtitulo,
+        ])[1 + floor(random() * 25)::INT] AS subtitulo,
 
         (ARRAY[
             'Ubisoft', 'Bethesda', 'Electronic Arts', 'Valve',
             'CD Projekt Red', 'Nintendo', 'Sony Interactive',
             'Square Enix', 'Capcom', 'Bandai Namco',
             'Rockstar Games', 'Riot Games'
-        ])[1 + ((i * 7 + i / 17) % 12)] AS desarrolladora,
+        ])[1 + floor(random() * 12)::INT] AS desarrolladora,
 
         (ARRAY[
             'PC', 'PlayStation 5', 'Xbox Series X',
             'Nintendo Switch', 'PlayStation 4'
-        ])[1 + (i % 5)] AS plataforma1,
+        ])[1 + floor(random() * 5)::INT] AS plataforma1,
 
         (ARRAY[
             'PC', 'Xbox Series X', 'PlayStation 5',
             'Nintendo Switch', 'Xbox One'
-        ])[1 + ((i * 3 + 1) % 5)] AS plataforma2,
+        ])[1 + floor(random() * 5)::INT] AS plataforma2,
 
         (ARRAY[
             'Acción', 'Aventura', 'RPG', 'Estrategia',
             'Supervivencia', 'Deportes', 'Terror',
             'Simulación', 'Mundo abierto', 'Plataformas'
-        ])[1 + (i % 10)] AS genero,
+        ])[1 + floor(random() * 10)::INT] AS genero,
 
         (ARRAY[
             'Acción', 'Aventura', 'RPG', 'Estrategia',
             'Supervivencia', 'Deportes', 'Terror',
             'Simulación', 'Carreras', 'Indie'
-        ])[1 + ((i * 3 + 2) % 10)] AS genero2
+        ])[1 + floor(random() * 10)::INT] AS genero2,
+
+        2000 + floor(random() * 25)::INT AS anio,
+        1 + floor(random() * 12)::INT AS mes,
+        1 + floor(random() * 28)::INT AS dia,
+        50 + floor(random() * 51)::INT AS calificacion,
+        1 + floor(random() * 5000)::INT AS similar_id,
+        random() AS r_dlc,
+        random() AS r_exp,
+        (ARRAY[
+            '1f2937', '7c2d12', '14532d', '1e3a8a', '581c87',
+            '831843', '134e4a', '713f12', '312e81', '7f1d1d'
+        ])[1 + floor(random() * 10)::INT] AS color_portada
     FROM generate_series(1, 5000) AS gs(i)
 ) AS datos;
 
@@ -163,13 +174,13 @@ SELECT
         'Mateo', 'Sofia', 'Lucas', 'Valentina', 'Santiago',
         'Martina', 'Benjamin', 'Lucia', 'Joaquin', 'Catalina',
         'Tomas', 'Camila', 'Nicolas', 'Agustina', 'Franco'
-    ])[1 + (i % 15)],
+    ])[1 + floor(random() * 15)::INT],
 
     (ARRAY[
         'Gonzalez', 'Rodriguez', 'Lopez', 'Martinez', 'Perez',
         'Gomez', 'Sanchez', 'Diaz', 'Alvarez', 'Romero',
         'Torres', 'Ruiz', 'Fernandez', 'Acosta', 'Benitez'
-    ])[1 + ((i * 7) % 15)],
+    ])[1 + floor(random() * 15)::INT],
 
     CASE
         WHEN i = 1 THEN 'admin'
@@ -178,7 +189,7 @@ SELECT
     END,
 
     CASE
-        WHEN i % 5 = 0 THEN 'google_token_id_' || i
+        WHEN random() < 0.2 THEN 'google_token_id_' || i
         ELSE NULL
     END,
 
@@ -186,7 +197,7 @@ SELECT
 
     'player_' || i || '@gamemail.com',
 
-    NOW() - ((i % 500) * INTERVAL '1 day'),
+    NOW() - (random() * 500) * INTERVAL '1 day',
     NOW()
 FROM generate_series(1, 10000) AS gs(i);
 
@@ -218,10 +229,32 @@ INSERT INTO resenas (
     "updatedAt"
 )
 SELECT
-        1 + ((i::BIGINT * 7919) % 5000),
-        1 + ((i::BIGINT * 3571) % 10000),
-
-    (ARRAY[
+    (1 + (r % 5000))::INT,
+    (1 + ((r / 5000) % 10000))::INT,
+    t.textos[1 + ((r / 50000000) % 20)::INT] ||
+    ' Comentario de jugador #' || i || '.',
+    floor(u * u * u * 301)::INTEGER,
+    NOW() - (r_fecha * 31536000) * INTERVAL '1 second',
+    NOW()
+FROM (
+    -- r: entero aleatorio de 52 bits del que se derivan juego, usuario,
+    -- texto y likes (así se llama a random() solo 2 veces por fila).
+    SELECT
+        i,
+        r,
+        r_fecha,
+        ((r / 1000000000) % 1000000)::FLOAT8 / 1000000 AS u
+    FROM (
+        SELECT
+            i,
+            (random() * 4503599627370496)::BIGINT AS r,
+            random() AS r_fecha
+        FROM generate_series(1, 6000000) AS gs(i)
+    ) AS base
+) AS datos
+-- Los 20 textos se construyen UNA sola vez (no una vez por fila).
+CROSS JOIN (
+    SELECT ARRAY[
         'La experiencia de juego es excelente. Los escenarios y la jugabilidad hacen que valga la pena dedicarle horas.',
         'Me gustó mucho la historia y el desarrollo de los personajes. Tiene algunos detalles para mejorar, pero lo recomiendo.',
         'Un título muy entretenido. Su sistema de progresión y sus mecánicas mantienen el interés durante toda la partida.',
@@ -242,14 +275,8 @@ SELECT
         'Es entretenido, aunque algunas partes se sienten repetitivas. Aun así, merece una oportunidad.',
         'Una propuesta sólida que combina buenas mecánicas con una ambientación interesante.',
         'Lo recomiendo especialmente a quienes disfrutan de los desafíos y la exploración.'
-    ])[1 + ((i * 13) % 20)] ||
-    ' Comentario de jugador #' || i || '.',
-
-    ((i::BIGINT * 17) % 301)::INTEGER,
-
-    NOW() - (((i::BIGINT * 7919) % 31536000) * INTERVAL '1 second'),
-    NOW()
-FROM generate_series(1, 6000000) AS gs(i);
+    ] AS textos
+) AS t;
 
 -- =========================================================================
 -- 5. ACCESOS (10.000 registros)
@@ -265,21 +292,27 @@ INSERT INTO accesos (
     error
 )
 SELECT
-    1 + (i % 10000),
-    'gamer_' || (1 + (i % 10000)),
-    NOW() - ((i % 60) * INTERVAL '1 day'),
-    '192.168.' || (1 + (i % 254)) || '.' || (1 + ((i * 7) % 254)),
+    uid,
+    'gamer_' || uid,
+    NOW() - (random() * 60) * INTERVAL '1 day',
+    '192.168.' || (1 + floor(random() * 254)::INT) || '.' || (1 + floor(random() * 254)::INT),
+    (ARRAY[
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        'Mozilla/5.0 (X11; Linux x86_64)',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X)'
+    ])[1 + floor(random() * 3)::INT],
+    ok,
     CASE
-        WHEN i % 3 = 0 THEN 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-        WHEN i % 3 = 1 THEN 'Mozilla/5.0 (X11; Linux x86_64)'
-        ELSE 'Mozilla/5.0 (Macintosh; Intel Mac OS X)'
-    END,
-    (i % 5 <> 0),
-    CASE
-        WHEN i % 5 = 0 THEN 'Error de autenticacion'
+        WHEN NOT ok THEN 'Error de autenticacion'
         ELSE NULL
     END
-FROM generate_series(1, 10000) AS gs(i);
+FROM (
+    SELECT
+        i,
+        1 + floor(random() * 10000)::INT AS uid,
+        (random() >= 0.2) AS ok
+    FROM generate_series(1, 10000) AS gs(i)
+) AS datos;
 
 -- =========================================================================
 -- 6. AUDIT_LOGS (10.000 registros)
@@ -297,9 +330,9 @@ INSERT INTO audit_logs (
     resultado
 )
 SELECT
-    'gamer_' || (1 + (i % 10000)),
+    'gamer_' || (1 + floor(random() * 10000)::INT),
 
-    CASE (i % 5)
+    CASE k
         WHEN 0 THEN 'CREAR_RESENA'
         WHEN 1 THEN 'ELIMINAR_FAVORITO'
         WHEN 2 THEN 'CONSULTAR_JUEGO'
@@ -308,35 +341,45 @@ SELECT
     END,
 
     CASE
-        WHEN i % 5 IN (0, 1) THEN 'POST'
+        WHEN k IN (0, 1) THEN 'POST'
         ELSE 'GET'
     END,
 
-    CASE (i % 4)
-        WHEN 0 THEN '/api/juegos/detalles/' || (1 + (i % 5000))
-        WHEN 1 THEN '/api/resenas/' || (1 + (i % 5000))
+    CASE floor(random() * 4)::INT
+        WHEN 0 THEN '/api/juegos/detalles/' || (1 + floor(random() * 5000)::INT)
+        WHEN 1 THEN '/api/resenas/' || (1 + floor(random() * 5000)::INT)
         WHEN 2 THEN '/api/juegos/buscar'
         ELSE '/api/login'
     END,
 
-    '10.0.' || (1 + (i % 254)) || '.' || (1 + ((i * 3) % 254)),
+    '10.0.' || (1 + floor(random() * 254)::INT) || '.' || (1 + floor(random() * 254)::INT),
 
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+    (ARRAY[
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        'Mozilla/5.0 (X11; Linux x86_64)',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X)'
+    ])[1 + floor(random() * 3)::INT],
 
-    NOW() - ((i % 30) * INTERVAL '1 day'),
+    NOW() - (random() * 30) * INTERVAL '1 day',
 
     CASE
-        WHEN i % 20 = 0 THEN 404
-        WHEN i % 25 = 0 THEN 500
+        WHEN r < 0.05 THEN 404
+        WHEN r < 0.09 THEN 500
         ELSE 200
     END,
 
     CASE
-        WHEN i % 20 = 0 THEN '{"status":"not_found"}'
-        WHEN i % 25 = 0 THEN '{"status":"error"}'
+        WHEN r < 0.05 THEN '{"status":"not_found"}'
+        WHEN r < 0.09 THEN '{"status":"error"}'
         ELSE '{"status":"success"}'
     END
-FROM generate_series(1, 10000) AS gs(i);
+FROM (
+    SELECT
+        i,
+        floor(random() * 5)::INT AS k,
+        random() AS r
+    FROM generate_series(1, 10000) AS gs(i)
+) AS datos;
 
 -- =========================================================================
 -- 7. ACTUALIZACIÓN DE ESTADÍSTICAS
