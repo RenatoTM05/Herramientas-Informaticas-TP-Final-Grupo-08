@@ -19,6 +19,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./db-scripts/init/01_schema_init.sql:/docker-entrypoint-initdb.d/01_schema_init.sql:ro
       - ./db-scripts/seeders/02_massive_seed_6M.sql:/docker-entrypoint-initdb.d/02_massive_seed_6M.sql:ro
+      - ./db-scripts/optimizations/create_indexes.sql:/docker-entrypoint-initdb.d/03_create_indexes.sql:ro
     networks:
       - db-network
     healthcheck:
