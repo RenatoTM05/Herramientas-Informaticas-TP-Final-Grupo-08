@@ -59,7 +59,7 @@ export class LoginComponent implements OnInit {
               timer: 2500,
               timerProgressBar: true
             }).then(() => {
-              this.router.navigate(['/home']);
+              this.router.navigate(['/']);
             });
           }
         },

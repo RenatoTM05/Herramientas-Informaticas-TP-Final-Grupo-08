@@ -81,6 +81,6 @@ export class PagoExitosoComponent implements OnInit {
   }
 
   volverAlHome() {
-    this.router.navigate(['/home']);
+    this.router.navigate(['/']);
   }
 }

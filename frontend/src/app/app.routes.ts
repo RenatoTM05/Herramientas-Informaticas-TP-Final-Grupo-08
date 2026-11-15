@@ -11,9 +11,12 @@ import { Dashboard } from './pages/dashboard/dashboard';
 
 export const routes: Routes = [
   { path: '', component: HomeComponent }, 
+  { path: 'home', redirectTo: '' }, 
   { path: 'Login', component: LoginComponent },
+  { path: 'login', redirectTo: 'Login' },
   { path: 'oauth-callback', component: OuathCallback },
   { path: 'Registro', component: RegistroComponent },
+  { path: 'registro', redirectTo: 'Registro' },
   { path: 'pago-exitoso', component: PagoExitosoComponent },
   { path: 'Resultados/:termino', component: ResultadosComponent },
   
@@ -23,6 +26,7 @@ export const routes: Routes = [
 
   // Ruta boton del navbar para ir al dashboard de admin
   { path: 'Admin', component: Dashboard },
+  { path: 'admin', redirectTo: 'Admin' },
 
   // El comodín comodín va ÚNICAMENTE al final de todo el archivo
   { path: '**', redirectTo: '' } 
