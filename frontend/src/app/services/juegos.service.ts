@@ -73,4 +73,17 @@ export class JuegosService {
   getDetalleJuego(id: string): Observable<any> {
     return this.http.get(`${this.baseUrl}/detalle/${id}`);
   }
+
+  // Obtener reseñas de un juego con paginación
+  obtenerResenas(juegoId: number, pagina: number = 1, limite: number = 10): Observable<any> {
+    const params = new HttpParams()
+      .set('pagina', pagina)
+      .set('limite', limite);
+
+    return this.http.get(
+      `http://localhost:3000/resenas/juego/${juegoId}`,
+      { params }
+    );
+  }
+
 }
