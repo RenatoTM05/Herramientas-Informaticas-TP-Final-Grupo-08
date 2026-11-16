@@ -5,7 +5,7 @@
 #
 # ETAPAS:
 #   1. lint-backend    → Validación de sintaxis JS (node --check)
-#   2. lint-frontend   → Verificación de formato con Prettier (prettier --check)
+#   2. lint-frontend   → Verificación de tipos TypeScript (tsc --noEmit)
 #   3. test-backend    → Pruebas unitarias con Node.js built-in test runner
 #   4. test-frontend   → Pruebas unitarias con Angular/Vitest en modo headless
 #   5. build-and-push  → Build multi-stage de imágenes Docker + push a GHCR
@@ -77,10 +77,10 @@ jobs:
 
 
   # ═══════════════════════════════════════════════════════
-  # JOB 2: Linting y verificación de formato - Frontend
+  # JOB 2: Linting y verificación de tipos - Frontend
   # ═══════════════════════════════════════════════════════
   lint-frontend:
-    name: "🔍 Lint Frontend (Prettier --check)"
+    name: "🔍 Lint Frontend (TypeScript --noEmit)"
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -97,10 +97,10 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Instalar dependencias (incluye Prettier en devDependencies)
+      - name: Instalar dependencias del frontend
         run: npm ci --legacy-peer-deps
 
-      - name: Ejecutar verificación de formato con Prettier
+      - name: Ejecutar verificación de tipos con TypeScript compiler
         run: npm run lint
 
 
