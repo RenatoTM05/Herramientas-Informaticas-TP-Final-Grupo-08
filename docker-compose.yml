@@ -377,6 +377,98 @@ services:
     networks:
       - nextcloud-network
 
+  # ===========================================================================
+  # HU-14 | Observabilidad y Monitoreo (Prometheus, Grafana y Exportadores)
+  # ===========================================================================
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: gamer_node_exporter
+    restart: unless-stopped
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - monitoring-network
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: gamer_cadvisor
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    networks:
+      - monitoring-network
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: gamer_postgres_exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-gamer_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-tpfinalbackend}?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - db-network
+      - monitoring-network
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: gamer_prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    networks:
+      - monitoring-network
+      - db-network
+      - app-network
+    depends_on:
+      - node-exporter
+      - cadvisor
+      - postgres-exporter
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: gamer_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin123}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    networks:
+      - monitoring-network
+    depends_on:
+      - prometheus
+
 # =============================================================================
 # Volúmenes nombrados con persistencia garantizada
 # =============================================================================
@@ -400,6 +492,10 @@ volumes:
     name: gamer_nextcloud_data
   nextcloud_db_data:
     name: gamer_nextcloud_db_data
+  prometheus_data:
+    name: gamer_prometheus_data
+  grafana_data:
+    name: gamer_grafana_data
 
 # =============================================================================
 # Redes bridge internas segmentadas (Seguridad y Microsegmentación)
@@ -418,4 +514,7 @@ networks:
     driver: bridge
   nextcloud-network:
     name: gamer_nextcloud_network
+    driver: bridge
+  monitoring-network:
+    name: gamer_monitoring_network
     driver: bridge
