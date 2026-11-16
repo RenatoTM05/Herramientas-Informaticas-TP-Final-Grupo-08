@@ -1,0 +1,87 @@
+groups:
+  - name: host_alerts
+    rules:
+      - alert: HostHighCpuUsage
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 85
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Uso elevado de CPU en el Host ({{ $value | printf \"%.2f\" }}%)"
+          description: "La utilización promedio de CPU del host ha superado el 85% durante más de 1 minuto."
+
+      - alert: HighCpuStressDetected
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[30s])) * 100) > 60
+        for: 5s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alerta de estrés: Carga alta de CPU detectada"
+          description: "La utilización de CPU del host ha superado el 60% durante la prueba controlada de estrés."
+
+      - alert: HostLowDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/rootfs"} / node_filesystem_size_bytes{mountpoint="/rootfs"}) * 100 < 15
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Espacio en disco bajo (< 15%)"
+          description: "El espacio disponible en el sistema de archivos principal es menor al 15% (actual: {{ $value | printf \"%.2f\" }}%)."
+
+  - name: container_alerts
+    rules:
+      - alert: CriticalContainerDown
+        expr: time() - container_last_seen{name=~"gamer_backend|gamer_frontend|gamer-db-proxy|gamer-pg-node-1|gamer-pg-node-2|gamer-pg-node-3"} > 30
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Contenedor crítico caído: {{ $labels.name }}"
+          description: "El contenedor crítico {{ $labels.name }} no ha reportado métricas en los últimos 30 segundos."
+
+      - alert: ContainerHighMemoryUsage
+        expr: (container_memory_usage_bytes{name=~"gamer_.*|glpi.*|nextcloud.*"} / container_spec_memory_limit_bytes{name=~"gamer_.*|glpi.*|nextcloud.*"}) * 100 > 90
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Uso de memoria crítico en contenedor {{ $labels.name }}"
+          description: "El contenedor {{ $labels.name }} está utilizando más del 90% de su límite de memoria asignado."
+
+  - name: database_patroni_alerts
+    rules:
+      - alert: PatroniNoLeader
+        expr: sum(patroni_primary{cluster="gamer-postgres"}) == 0
+        for: 15s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Clúster Patroni sin nodo Líder"
+          description: "El clúster de alta disponibilidad gamer-postgres no cuenta con ningún nodo activo en rol Leader."
+
+      - alert: PatroniReplicationLagHigh
+        expr: (scalar(max(patroni_xlog_location)) - patroni_xlog_replayed_location{patroni_replica="1"}) > 52428800  # 50 MB
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Lag de replicación elevado en {{ $labels.name }}"
+          description: "El retraso de replicación en el nodo {{ $labels.name }} excede los 50 MB (actual: {{ $value }} bytes)."
+
+      - alert: PostgresTooManyConnections
+        expr: (pg_stat_activity_count / pg_settings_max_connections) * 100 > 80
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL al borde del límite de conexiones"
+          description: "Las conexiones activas a PostgreSQL superan el 80% del límite configurado."
+
+      - alert: PostgresDeadlocksDetected
+        expr: rate(pg_stat_database_deadlocks[1m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Deadlocks detectados en PostgreSQL"
+          description: "Se han registrado bloqueos mutuos (deadlocks) en la base de datos {{ $labels.datname }}."
