@@ -1,0 +1,176 @@
+{
+  "name": "Flujo 3 - Reporte de Rendimiento Asistido por IA",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -368,
+        -128
+      ],
+      "id": "27a519b9-ee37-49c9-9716-1f537ab1524d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const promUrl = 'http://prometheus:9090/api/v1/query';\n\n// Consultas PromQL clave del entorno\nconst queries = {\n  cpuUsagePct: '100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)',\n  ramUsagePct: '(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100',\n  postgresConnections: 'pg_stat_activity_count',\n  activeContainers: 'count(container_last_seen{name=~\"gamer_.*|glpi.*|nextcloud.*\"})'\n};\n\nconst metrics = {};\n\nfor (const [key, q] of Object.entries(queries)) {\n  try {\n    const res = await fetch(`${promUrl}?query=${encodeURIComponent(q)}`);\n    const data = await res.json();\n    if (data.status === 'success' && data.data.result.length > 0) {\n      const val = parseFloat(data.data.result[0].value[1]);\n      metrics[key] = isNaN(val) ? 0 : parseFloat(val.toFixed(2));\n    } else {\n      metrics[key] = \"Sin datos\";\n    }\n  } catch (err) {\n    metrics[key] = \"Error de consulta\";\n  }\n}\n\nconst fecha = new Date().toISOString().split('T')[0];\n\n// Armar el prompt para la IA\nconst prompt = `Actúa como un SysAdmin Senior de Infraestructura y DevOps.\nAnaliza las siguientes métricas de telemetría extraídas de Prometheus para la plataforma \"Red Social Gamer\":\n\n- Utilización promedio de CPU (Host): ${metrics.cpuUsagePct}%\n- Utilización de Memoria RAM: ${metrics.ramUsagePct}%\n- Conexiones concurrentes a PostgreSQL: ${metrics.postgresConnections}\n- Contenedores Docker activos monitoreados: ${metrics.activeContainers}\n\nGenera un INFORME EJECUTIVO DE RENDIMIENTO en formato Markdown profesional que incluya:\n1. Resumen Ejecutivo del estado de salud de la plataforma.\n2. Diagnóstico de Capacidad y potenciales cuellos de botella.\n3. Recomendaciones de optimización preventiva (Base de Datos, Memoria y Contenedores).\n4. Conclusión y semáforo de estado (Verde / Amarillo / Rojo).\n\nFecha del informe: ${fecha}. Formato Markdown limpio sin rodeos.`;\n\nreturn [{\n  json: {\n    fecha,\n    metrics,\n    prompt\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        -128
+      ],
+      "id": "9885af85-a823-490e-b34b-1940a4614171",
+      "name": "Recolectar Metricas"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=TU_GEMINI_API_KEY",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    contents: [\n      {\n        parts: [\n          {\n            text: $('Recolectar Metricas').item.json.prompt\n          }\n        ]\n      }\n    ]\n  })\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        160,
+        -128
+      ],
+      "id": "134b4bad-0799-44ce-8a6d-0ce1e2f0795d",
+      "name": "Consultar Gemini AI"
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst fecha = $('Recolectar Metricas').item.json.fecha;\n\n// Extraer el texto generado por Gemini\nlet reportMarkdown = \"# Informe Ejecutivo de Rendimiento no disponible\";\ntry {\n  reportMarkdown = response.candidates[0].content.parts[0].text;\n} catch (e) {\n  reportMarkdown = `# Error al generar reporte con IA\\n\\nNo se pudo extraer el texto de Gemini: ${e.message}`;\n}\n\nconst filename = `reporte_rendimiento_${fecha}.md`;\n\nreturn [{\n  json: {\n    filename,\n    reportContent: reportMarkdown,\n    tamanoChars: reportMarkdown.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        -128
+      ],
+      "id": "4c3585fb-a8d7-45c0-b30a-bd97157b4a7a",
+      "name": "Formatear Archivo Markdown"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=http://nextcloud/remote.php/dav/files/admin_nextcloud/{{ $('Formatear Archivo Markdown').item.json.filename }}    ",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "text/markdown; charset=utf-8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/plain",
+        "body": "={{ $('Formatear Archivo Markdown').item.json.reportContent }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        672,
+        -128
+      ],
+      "id": "ae78324d-6709-45c8-997f-a636c37d7765",
+      "name": "Subir a Nextcloud",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "hgkegwZtuIx7tfVN",
+          "name": "nextCloud"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Recolectar Metricas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recolectar Metricas": {
+      "main": [
+        [
+          {
+            "node": "Consultar Gemini AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Gemini AI": {
+      "main": [
+        [
+          {
+            "node": "Formatear Archivo Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Archivo Markdown": {
+      "main": [
+        [
+          {
+            "node": "Subir a Nextcloud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "5fbe9154-f0f5-4eb5-ae77-b8e2045ec52d",
+  "meta": {
+    "instanceId": "d97227288da2c44f9a4221c964745c4478896119a880f4200f33e89f3fdb1464"
+  },
+  "nodeGroups": [],
+  "id": "yt3zLj5e2M9bMS76",
+  "tags": []
+}

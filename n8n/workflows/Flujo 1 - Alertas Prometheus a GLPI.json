@@ -1,0 +1,170 @@
+{
+  "name": "Flujo 1 - Alertas Prometheus a GLPI",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "alerta-infraestructura",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        -512,
+        -64
+      ],
+      "id": "8e015cb6-6a29-42a9-afeb-bbb525419efb",
+      "name": "Webhook",
+      "webhookId": "b2070311-ef0c-4929-b20f-8ecf3fffc31d"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const body = $json.body || $json;\nconst alerts = body.alerts || [];\nconst alert = alerts[0] || {};\nconst labels = alert.labels || {};\nconst annotations = alert.annotations || {};\n\n// Mapear severidad de Prometheus a Urgencia de GLPI (1: Muy baja ... 5: Muy alta)\nlet urgency = 3; // Media\nif (labels.severity === 'critical') {\n  urgency = 5; // Muy alta\n} else if (labels.severity === 'warning') {\n  urgency = 4; // Alta\n}\n\nconst alertName = labels.alertname || 'Alerta de Infraestructura Desconocida';\nconst summary = annotations.summary || alertName;\nconst description = annotations.description || 'Sin descripción disponible';\nconst status = alert.status || 'firing';\n\nreturn {\n  alertName,\n  summary,\n  description,\n  severity: labels.severity || 'warning',\n  urgency,\n  status,\n  ticketTitle: `[ALERTA INFRAESTRUCTURA] ${summary}`,\n  ticketContent: `Se ha detectado una anomalía automática reportada por Prometheus Alertmanager.<br><br><b>Alerta:</b> ${alertName}<br><b>Severidad:</b> ${labels.severity}<br><b>Estado:</b> ${status}<br><b>Detalle:</b> ${description}<br><b>Fecha:</b> ${new Date().toISOString()}`\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -304,
+        -64
+      ],
+      "id": "60fe5109-4af3-46e0-8a58-368b412a450c",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "http://glpi-app/apirest.php/initSession",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -80,
+        -64
+      ],
+      "id": "7e5a0957-578b-4071-a1a9-aa4b828bea30",
+      "name": "GLPI - Iniciar Sesion",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "GMkHH09eTudkAfT8",
+          "name": "glpi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://glpi-app/apirest.php/Ticket    ",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Session-Token",
+              "value": "={{ $('GLPI - Iniciar Sesion').item.json.session_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"input\": {\n    \"name\": \"{{ $('Code in JavaScript').item.json.ticketTitle }}\",\n    \"content\": \"{{ $('Code in JavaScript').item.json.ticketContent }}\",\n    \"urgency\": {{ $('Code in JavaScript').item.json.urgency }},\n    \"type\": 1\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        144,
+        -64
+      ],
+      "id": "78371c41-2643-47f1-8e5b-19b0676ff00e",
+      "name": "GLPI - Crear Ticket"
+    },
+    {
+      "parameters": {
+        "url": "http://glpi-app/apirest.php/killSession",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Session-Token",
+              "value": "={{ $('GLPI - Iniciar Sesion').item.json.session_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        368,
+        -64
+      ],
+      "id": "4d158755-8795-48d9-af32-5f6cde930787",
+      "name": "GLPI - Cerrar Sesion"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "GLPI - Iniciar Sesion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GLPI - Iniciar Sesion": {
+      "main": [
+        [
+          {
+            "node": "GLPI - Crear Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GLPI - Crear Ticket": {
+      "main": [
+        [
+          {
+            "node": "GLPI - Cerrar Sesion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "23ba53cb-a400-4f1e-b6af-38826158e262",
+  "meta": {
+    "instanceId": "d97227288da2c44f9a4221c964745c4478896119a880f4200f33e89f3fdb1464"
+  },
+  "nodeGroups": [],
+  "id": "WNSwEueYLDeY4wsx",
+  "tags": []
+}

@@ -1,0 +1,239 @@
+{
+  "name": "Flujo 2 - Verificación y Notificación de Backups",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 2
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -384,
+        -112
+      ],
+      "id": "23f986b5-3365-49f6-8351-aa1a68503083",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst crypto = require('crypto');\n\nconst backupDir = '/backups';\n\n// 1. Buscar todos los archivos .dump en el volumen\nlet files = [];\ntry {\n  files = fs.readdirSync(backupDir).filter(f => f.endsWith('.dump') && !f.startsWith('.'));\n} catch (error) {\n  return [{\n    json: {\n      isValid: false,\n      status: \"FAILED\",\n      error: `No se pudo acceder al directorio ${backupDir}: ${error.message}`,\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\nif (files.length === 0) {\n  return [{\n    json: {\n      isValid: false,\n      status: \"FAILED\",\n      error: \"No se encontraron archivos de backup (.dump) en el volumen.\",\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\n// 2. Tomar el backup más reciente\nconst latestFile = files.sort().reverse()[0];\nconst fullPath = `${backupDir}/${latestFile}`;\nconst stats = fs.statSync(fullPath);\nconst sizeBytes = stats.size;\nconst sizeMB = (sizeBytes / (1024 * 1024)).toFixed(2);\n\n// 3. Validar que no esté vacío (> 0 bytes)\nif (sizeBytes <= 0) {\n  return [{\n    json: {\n      isValid: false,\n      status: \"FAILED\",\n      filename: latestFile,\n      sizeBytes: 0,\n      error: \"El archivo de backup existe pero está vacío (0 bytes).\",\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\n// 4. Validar existencia del checksum .sha256\nconst shaFile = `${fullPath}.sha256`;\nif (!fs.existsSync(shaFile)) {\n  return [{\n    json: {\n      isValid: false,\n      status: \"FAILED\",\n      filename: latestFile,\n      sizeBytes,\n      sizeMB,\n      error: `El archivo ${latestFile} no cuenta con su firma sha256 correspondiente.`,\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\n// 5. Comparar Checksum real contra el esperado\nconst shaFileContent = fs.readFileSync(shaFile, 'utf8').trim();\nconst expectedSha = shaFileContent.split(/\\s+/)[0];\n\nconst fileBuffer = fs.readFileSync(fullPath);\nconst actualSha = crypto.createHash('sha256').update(fileBuffer).digest('hex');\n\nconst isChecksumMatch = (expectedSha.toLowerCase() === actualSha.toLowerCase());\n//const isChecksumMatch = false;// Simulación forzada de fallo\n\nif (!isChecksumMatch) {\n  return [{\n    json: {\n      isValid: false,\n      status: \"CORRUPTED\",\n      filename: latestFile,\n      sizeBytes,\n      sizeMB,\n      expectedSha,\n      actualSha,\n      error: \"La firma SHA-256 no coincide. ¡El archivo de backup está corrupto!\",\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\n// 6. Backup 100% íntegro y verificado\nreturn [{\n  json: {\n    isValid: true,\n    status: \"SUCCESS\",\n    filename: latestFile,\n    sizeBytes,\n    sizeMB,\n    checksum: actualSha,\n    summary: `Backup verificado con éxito: ${latestFile} (${sizeMB} MB). Checksum SHA-256 íntegro.`,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        -112
+      ],
+      "id": "5bec8bef-077d-4c6c-a9f5-bf867da787fe",
+      "name": "Auditar Backup"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "7c081f6e-72c9-4604-8773-0cf898797682",
+              "leftValue": "={{ $json.isValid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        64,
+        -112
+      ],
+      "id": "a5f51d47-c462-4acc-b293-10d2054a6860",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"mensaje\": \"AUDITORÍA EXITOSA: {{ $json.summary }}\",\n  \"archivo\": \"{{ $json.filename }}\",\n  \"tamaño_mb\": {{ $json.sizeMB }},\n  \"hash\": \"{{ $json.checksum }}\",\n  \"fecha\": \"{{ $json.timestamp }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        368,
+        -208
+      ],
+      "id": "f617f664-8184-4bd8-83a7-6905cd6b5756",
+      "name": "Notificar Exito"
+    },
+    {
+      "parameters": {
+        "url": "http://glpi-app/apirest.php/initSession",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        368,
+        32
+      ],
+      "id": "d2be6c2e-9259-4bf5-85b3-3af693cf7bb1",
+      "name": "Login GLPI",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "GMkHH09eTudkAfT8",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://glpi-app/apirest.php/Ticket",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Session-Token",
+              "value": "={{ $('Login GLPI').item.json.session_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json        "
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"input\": {\n    \"name\": \"[CRÍTICO] Fallo de Integridad en Backup PostgreSQL\",\n    \"content\": \"Alerta automática de n8n: El backup auditado falló la verificación.<br><br><b>Detalle del error:</b> {{ $('Auditar Backup').item.json.error }}<br><b>Archivo:</b> {{ $('Auditar Backup').item.json.filename }}<br><b>Fecha:</b> {{ $('Auditar Backup').item.json.timestamp }}\",\n    \"urgency\": 5,\n    \"type\": 1\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        592,
+        32
+      ],
+      "id": "c736c6fa-52dc-4d2c-8626-6f204631a9ef",
+      "name": "Crear Ticket en GLPI"
+    },
+    {
+      "parameters": {
+        "url": "http://glpi-app/apirest.php/killSession",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Session-Token",
+              "value": "={{ $('Login GLPI').item.json.session_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        832,
+        32
+      ],
+      "id": "40feb6ac-39e2-40f2-9d59-5d618922dede",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Auditar Backup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auditar Backup": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Notificar Exito",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Login GLPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Login GLPI": {
+      "main": [
+        [
+          {
+            "node": "Crear Ticket en GLPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Ticket en GLPI": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "afac4cb3-f33e-43e6-a23f-81ceec6fb395",
+  "meta": {
+    "instanceId": "d97227288da2c44f9a4221c964745c4478896119a880f4200f33e89f3fdb1464"
+  },
+  "nodeGroups": [],
+  "id": "rzdynbdnQT51rpyU",
+  "tags": []
+}

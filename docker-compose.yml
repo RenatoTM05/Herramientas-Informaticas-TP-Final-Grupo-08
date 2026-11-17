@@ -155,7 +155,7 @@ services:
 
   backup-permissions:
     image: postgres:16-bookworm
-    entrypoint: [bash, -c, 'chown postgres:postgres /backups && chmod 700 /backups']
+    entrypoint: [bash, -c, 'chown postgres:postgres /backups && chmod 755 /backups && chmod 644 /backups/* 2>/dev/null || true']
     volumes: [backup-data:/backups]
     network_mode: none
 
@@ -509,6 +509,7 @@ services:
       - TZ=${TZ:-America/Argentina/Buenos_Aires}
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-super_secret_encryption_key_grupo08}
       - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
+      - NODE_FUNCTION_ALLOW_BUILTIN=fs,path,crypto
     volumes:
       - n8n_data:/home/node/.n8n
       - backup-data:/backups:ro
