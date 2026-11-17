@@ -469,6 +469,55 @@ services:
     depends_on:
       - prometheus
 
+    # ===========================================================================
+  # HU-18 | Alertmanager - Despachador de alertas de Prometheus hacia n8n
+  # ===========================================================================
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: gamer_alertmanager
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    ports:
+      - "127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"
+    networks:
+      - monitoring-network
+
+  # ===========================================================================
+  # HU-18 | n8n - Orquestador de Flujos y Automatización Operativa
+  # ===========================================================================
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: gamer_n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${N8N_PORT:-5678}:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=${TZ:-America/Argentina/Buenos_Aires}
+      - TZ=${TZ:-America/Argentina/Buenos_Aires}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-super_secret_encryption_key_grupo08}
+      - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - backup-data:/backups:ro
+    networks:
+      - monitoring-network
+      - glpi-network
+      - nextcloud-network
+      - db-network
+    depends_on:
+      - prometheus
+      - glpi
+      - nextcloud
+
 # =============================================================================
 # Volúmenes nombrados con persistencia garantizada
 # =============================================================================
@@ -496,6 +545,10 @@ volumes:
     name: gamer_prometheus_data
   grafana_data:
     name: gamer_grafana_data
+  n8n_data:
+    name: gamer_n8n_data
+  alertmanager_data:
+    name: gamer_alertmanager_data
 
 # =============================================================================
 # Redes bridge internas segmentadas (Seguridad y Microsegmentación)
