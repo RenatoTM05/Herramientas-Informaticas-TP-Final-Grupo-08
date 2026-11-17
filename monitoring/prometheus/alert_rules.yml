@@ -20,7 +20,7 @@ groups:
           description: "La utilización de CPU del host ha superado el 60% durante la prueba controlada de estrés."
 
       - alert: HostLowDiskSpace
-        expr: (node_filesystem_avail_bytes{mountpoint="/rootfs"} / node_filesystem_size_bytes{mountpoint="/rootfs"}) * 100 < 15
+        expr: (node_filesystem_avail_bytes{mountpoint="/mnt/docker-desktop-disk",device="/dev/sdd"} / node_filesystem_size_bytes{mountpoint="/mnt/docker-desktop-disk",device="/dev/sdd"}) * 100 < 15
         for: 2m
         labels:
           severity: critical
