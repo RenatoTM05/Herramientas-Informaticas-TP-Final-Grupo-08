@@ -195,7 +195,7 @@
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "rate(container_cpu_usage_seconds_total{name=~\"gamer.*|glpi.*|nextcloud.*\"}[1m]) * 100",
+          "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{name=~\".+\"}[1m])) * 100",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -215,7 +215,7 @@
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "container_memory_usage_bytes{name=~\"gamer.*|glpi.*|nextcloud.*\"}",
+          "expr": "container_memory_usage_bytes{name=~\".+\"}",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -300,7 +300,7 @@
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "100 - ((node_filesystem_avail_bytes{mountpoint=\"/rootfs\"} or node_filesystem_avail_bytes{mountpoint=\"/\"}) / (node_filesystem_size_bytes{mountpoint=\"/rootfs\"} or node_filesystem_size_bytes{mountpoint=\"/\"}) * 100)",
+          "expr": "100 - (node_filesystem_avail_bytes{mountpoint=\"/mnt/docker-desktop-disk\",device=\"/dev/sdd\"} / node_filesystem_size_bytes{mountpoint=\"/mnt/docker-desktop-disk\",device=\"/dev/sdd\"} * 100)",
           "legendFormat": "Disco %",
           "refId": "A"
         }
