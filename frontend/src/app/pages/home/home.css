@@ -1,166 +1,231 @@
-/* CSS exclusivo para los bordes, colores, tamaños y sombras personalizadas */
-
-/* El brillo exterior y el degradado del borde */
-.custom-neon-border {
-  background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
-  box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
-  transition: all 0.3s ease-in-out;
+:host {
+  --surface: #142031;
+  --border: #304055;
+  --muted: #aebbd0;
+  --accent: #d8f889;
+  display: block;
+  color: #f5f7fc;
 }
 
-.custom-neon-border:focus-within {
-  box-shadow: 0 0 30px rgba(0, 210, 255, 0.8);
-  transform: scale(1.02);
+.catalog {
+  width: min(100% - 2rem, 75rem);
+  margin: 2rem auto 0;
+  padding-bottom: 4rem;
 }
-
-/* Sombra del título */
-.custom-text-shadow {
-  text-shadow: 0 0 15px rgba(0, 210, 255, 0.6);
-  letter-spacing: 1px;
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(1rem, 4vw, 3rem);
+  padding: clamp(1rem, 4vw, 3rem);
+  border: 1px solid var(--border);
+  border-radius: 1.5rem;
+  background: radial-gradient(ellipse at top left, #233a3b, transparent 72%), var(--surface);
 }
-
-/* Quitar el borde azul por defecto que le pone Bootstrap al hacer clic */
-.custom-input:focus {
-  box-shadow: none !important;
+h1 {
+  font-size: clamp(2.65rem, 6vw, 5rem);
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -0.065em;
+  margin-bottom: 1.75rem;
 }
-
-/* Color personalizado al pasar el mouse por el botón */
-.custom-btn:hover {
-  background-color: #3a7bd5 !important;
-  color: #ffffff !important;
+h1 span {
+  color: var(--accent);
 }
-
-/* Altura controlada para las imágenes del carrusel */
-.custom-carousel-img {
-  height: 500px;
-  object-fit: contain; /* Esto hace que la imagen entre completa sin recortarse */
-  background-color: #121212; /* Fondo oscuro para rellenar los huecos laterales */
+h2 {
+  margin: 0 0 1rem;
+  font-size: clamp(1.45rem, 2.5vw, 2rem);
+  font-weight: 750;
+  letter-spacing: -0.035em;
 }
-
-/* --- ESTILOS PARA LAS TARJETAS DEL CATÁLOGO --- */
-.custom-card-img {
-  height: 250px; /* Altura fija para que todas queden parejas */
-  object-fit: cover; /* Recorta los bordes sin deformar la imagen */
-  object-position: top; /* Prioriza mostrar la parte de arriba  */
+.game-search {
+  position: relative;
+  z-index: 2;
 }
-.custom-premium-card {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+.search-controls {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  padding: 0.4rem 0.4rem 0.4rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: #0c1624;
 }
-.custom-premium-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 0 20px rgba(0, 212, 255, 0.4) !important;
+.search-controls i,
+small,
+.platforms {
+  color: var(--muted);
 }
-.filter-brightness {
-  filter: brightness(0.8);
+.search-controls:focus-within {
+  border-color: var(--accent);
 }
-.animate-pulse {
-  animation: pulse 2s infinite;
-}
-@keyframes pulse {
-  0% { opacity: 0.6; }
-  50% { opacity: 1; }
-  100% { opacity: 0.6; }
-}
-/* --- Efecto base normal --- */
-.custom-premium-card {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-/* --- MODO COMPACTO STICKY --- */
-.contenedor-premium-wrapper.is-sticky {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  z-index: 1050;
-  background: rgba(10, 15, 30, 0.95); /* Fondo azul noche ultra premium */
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
-  padding: 12px 4% !important;
-  box-shadow: 0 -10px 35px rgba(0, 0, 0, 0.8);
-  /* Animación más suave de entrada (0.5 segundos con frenado elegante) */
-  animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-/* Ocultar elementos que molestan en modo barra compacta */
-.is-sticky .cabecera-premium,
-.is-sticky .img-premium,
-.is-sticky .descripcion-juego,
-.is-sticky .badge-early,
-.is-sticky .etiqueta-precio {
-  display: none !important;
-}
-
-/* Forzar que la fila use todo el ancho de la barra */
-.is-sticky .fila-premium-cards {
-  margin: 0 !important;
-  width: 100%;
-}
-
-/* Modificación de la tarjeta en modo barra */
-.is-sticky .custom-premium-card {
-  background: rgba(30, 41, 59, 0.7) !important;
-  border: 1px solid rgba(0, 212, 255, 0.3) !important;
-  height: auto !important;
-}
-
-/* ARREGLO DE ALINEACIÓN: Esto evita las superposiciones */
-.is-sticky .cuerpo-card {
-  padding: 8px 12px !important;
-  display: flex !important;
-  flex-direction: row !important; /* Alineación horizontal obligatoria */
-  align-items: center !important;
-  justify-content: space-between !important;
-  gap: 8px;
-}
-
-/* Ajustes de textos en la barra flotante */
-.is-sticky .info-juego {
+.search-controls input {
+  min-width: 0;
   flex: 1;
-  min-width: 0; /* Permite que actúe el truncado de texto correctamente */
+  background: transparent;
+  color: inherit;
+  color-scheme: dark;
+  border: 0;
+  outline: 0;
 }
-
-.is-sticky .titulo-juego {
-  font-size: 0.85rem !important;
-  color: #fff !important;
-  margin: 0 !important;
-  white-space: nowrap;
+.search-controls input::placeholder {
+  color: var(--muted);
+}
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.primary-button {
+  border: 0;
+  border-radius: 0.55rem;
+  padding: 0.55rem 0.85rem;
+  background: var(--accent);
+  color: #182212;
+  font-weight: 700;
+}
+.suggestions {
+  position: absolute;
+  inset: 100% 0 auto;
+  margin: 0.45rem 0 0;
+  padding: 0.35rem;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: #101b2a;
+}
+.suggestion {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.4rem;
+  text-align: left;
+  color: inherit;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+}
+.suggestion:hover {
+  background: var(--surface);
+}
+.suggestion-cover {
+  flex: 0 0 2rem;
+  aspect-ratio: 3 / 4;
+}
+.suggestion-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.featured-game {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-items: end;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  min-height: 13rem;
+  border: 0;
+  border-radius: 1rem;
   overflow: hidden;
-  text-overflow: ellipsis; /* Corta textos largos con "..." elegantemente */
+  padding: 1.2rem 5.25rem 1.2rem 1.2rem;
+  background: linear-gradient(120deg, #254357, #101b2a);
+  color: #fff;
+  text-align: left;
 }
-
-/* Ajustes del bloque de precio y botón */
-.is-sticky .selector-pago-premium {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  gap: 10px;
-  justify-content: flex-end;
+.featured-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 35%;
+  z-index: -2;
 }
-
-.is-sticky .contenedor-precio {
-  margin: 0 !important;
+.featured-game::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, #060b15 0%, #060b15bb 28%, transparent 82%);
+  z-index: -1;
 }
-
-.is-sticky .precio-juego {
-  font-size: 0.9rem !important;
-  color: #0df0a6 !important; /* Verde neón para resaltar el monto */
+.featured-copy {
+  display: grid;
+  gap: 0.25rem;
 }
-
-/* Botón súper adaptado */
-.is-sticky .custom-premium-btn {
-  font-size: 0.7rem !important;
-  padding: 4px 12px !important;
-  letter-spacing: 0.5px;
-  box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+.featured-copy small {
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 750;
 }
-
-/* Animación fluida amortiguada */
-@keyframes slideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+.featured-copy strong {
+  font-size: clamp(1.2rem, 2.8vw, 2.25rem);
+  line-height: 1.1;
+  overflow-wrap: anywhere;
 }
-/* Cuando la barra esté pegada abajo, le da un aire al contenedor general 
-   para que se pueda hacer scroll hasta el último pixel sin tapar nada */
-.contenedor-premium-wrapper.is-sticky + * {
-  margin-bottom: 120px !important;
+.featured-controls {
+  position: absolute;
+  right: 0.8rem;
+  bottom: 0.95rem;
+  display: flex;
+  gap: 0.35rem;
+}
+.featured-controls button {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: #0a1421;
+  color: inherit;
+}
+.catalog-section {
+  margin-top: clamp(1.75rem, 4vw, 3rem);
+}
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr));
+  gap: 0.9rem;
+}
+.game-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--surface);
+  overflow: hidden;
+}
+.game-art {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  background: linear-gradient(145deg, #254357, #101b2a);
+}
+.game-art img,
+.suggestion-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.game-info {
+  display: grid;
+  align-content: start;
+  gap: 0.3rem;
+  width: 100%;
+  padding: 0.75rem;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 47.99rem) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .game-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .search-controls {
+    gap: 0.4rem;
+  }
 }

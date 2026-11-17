@@ -1,34 +1,228 @@
-/* Color base oscuro y borde inferior violeta característico de IGDB */
-.custom-navbar {
-  background-color: #1e1e23 !important; /* Color base oscuro */
-  border-bottom: 3px solid #00d2ff; /* Borde inferior violeta */
+.gamer-navbar {
+  --accent: #d8f889;
+  --text: #f5f7fc;
+  --muted: #aebbd0;
+  --line: #304055;
+  --nav-bg: #0e1826;
+  --hover: #1a293a;
+  padding: 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  background: var(--nav-bg);
 }
 
-/* Estilo del botón de Iniciar Sesión */
-.custom-btn-login {
-  background-color: #2ba6c2;
-  color: #ffffff;
-  border: none;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+.nav-shell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 1.15rem;
+  width: min(100% - 2rem, 75rem);
+  min-height: 4.25rem;
+  margin-inline: auto;
+  padding-block: 0.6rem;
 }
 
-.custom-btn-login:hover {
-  background-color: #1c3883; /* Cambia de color al pasar el mouse */
-  color: #ffffff;
-  transform: scale(1.02);
+.gamer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  font-size: 1rem;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  text-decoration: none;
 }
 
-/* Detalles para que el buscador chico quede prolijo */
-.custom-search-group {
-  max-width: 200px;
+.gamer-brand:hover {
+  color: inherit;
 }
 
-.custom-search::placeholder {
-  color: #a1a1aa;
+.brand-mark {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border-radius: 0.65rem;
+  background: var(--accent);
+  color: #182212;
+  font-size: 0.85rem;
+  font-weight: 850;
+  letter-spacing: -0.045em;
 }
 
-.custom-search:focus {
+.nav-pages {
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  margin: 0;
+}
+
+.gamer-navbar .nav-link,
+.icon-button,
+.login-link,
+.logout-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.55rem;
+  padding: 0.42rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.gamer-navbar .nav-link:hover,
+.icon-button:hover,
+.logout-button:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+.gamer-navbar .nav-link.active {
+  color: #d8f889;
+  background: #253624;
+}
+
+.icon-button,
+.logout-button {
+  border-color: var(--line);
+  background: transparent;
+}
+
+.icon-button {
+  width: 2.55rem;
+  flex-shrink: 0;
+  padding: 0;
+  font-size: 1.05rem;
+}
+
+.navbar-toggler {
+  font-size: 1.2rem;
+}
+
+.nav-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.login-link {
+  background: var(--accent);
+  color: #182212;
+  white-space: nowrap;
+}
+
+.login-link:hover {
+  color: #182212;
+  background: #ecffb9;
+}
+
+.logout-button {
+  white-space: nowrap;
+}
+
+.nav-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.nav-profile img {
+  flex: 0 0 auto;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--hover);
+}
+
+.profile-text {
+  display: grid;
+  max-width: clamp(5rem, 10vw, 10rem);
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.profile-text strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-text small {
+  color: var(--muted);
+}
+
+.gamer-navbar :where(a, button):focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
   box-shadow: none;
-  border-color: rgb(67, 3, 188) !important;
+}
+
+@media (min-width: 992px) {
+  .gamer-navbar .navbar-toggler {
+    display: none;
+  }
+
+  .nav-shell,
+  .nav-pages,
+  .nav-actions {
+    flex-wrap: nowrap;
+  }
+
+  .nav-content {
+    gap: 0.65rem;
+    justify-content: space-between;
+  }
+
+  .gamer-navbar .nav-link {
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 992px) and (max-width: 1099px) {
+  .nav-shell {
+    column-gap: 0.7rem;
+  }
+
+  .nav-actions {
+    gap: 0.4rem;
+  }
+
+  .gamer-navbar .nav-link {
+    padding-inline: 0.45rem;
+  }
+
+  .profile-text {
+    max-width: 5rem;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .nav-content {
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .gamer-navbar .nav-link {
+    justify-content: flex-start;
+  }
+
+  .nav-actions {
+    margin-block: 0.55rem 0.15rem;
+  }
+
+  .profile-text {
+    max-width: min(34vw, 12rem);
+  }
 }

@@ -1,215 +1,174 @@
+<main class="results">
+  <header class="results-header">
+    <a class="back-link" routerLink="/"
+      ><i class="bi bi-arrow-left" aria-hidden="true"></i> Catálogo</a
+    >
+    <h1>
+      <ng-container *ngIf="terminoBusqueda; else busquedaPorFiltros">
+        Resultados para <span>«{{ terminoBusqueda }}»</span>
+      </ng-container>
+      <ng-template #busquedaPorFiltros>Búsqueda por filtros</ng-template>
+    </h1>
+  </header>
 
-<div class="container mt-5 mb-5 min-vh-100">
+  <div class="results-layout">
+    <aside class="filters" aria-labelledby="filters-title">
+      <h2 id="filters-title"><i class="bi bi-sliders" aria-hidden="true"></i> Filtros</h2>
 
-  <h3 class="mb-4 text-white fw-bold">
-    Resultados de la búsqueda:
-    <span class="text-info">"{{ terminoBusqueda }}"</span>
-  </h3>
+      <div class="filter-fields">
+        <label class="field">
+          <span>Desarrolladora</span>
+          <input type="text" [(ngModel)]="desarrolladora" placeholder="Ej. Nintendo" />
+        </label>
 
-  <!-- Filtros -->
-  <div class="card bg-dark border-secondary p-3 mb-4">
+        <fieldset class="rating">
+          <legend>Calificación</legend>
+          <div class="rating-fields">
+            <label class="field">
+              <span>Mínima</span>
+              <input
+                type="number"
+                [(ngModel)]="calificacionMin"
+                min="0"
+                max="100"
+                placeholder="0"
+              />
+            </label>
+            <label class="field">
+              <span>Máxima</span>
+              <input
+                type="number"
+                [(ngModel)]="calificacionMax"
+                min="0"
+                max="100"
+                placeholder="100"
+              />
+            </label>
+          </div>
+        </fieldset>
 
-    <div class="row g-3">
+        <label class="field">
+          <span>Ordenar por</span>
+          <select [(ngModel)]="orden">
+            <option value="titulo">Título</option>
+            <option value="calificacion">Calificación</option>
+            <option value="fecha_lanzamiento">Fecha de lanzamiento</option>
+            <option value="desarrolladora">Desarrolladora</option>
+          </select>
+        </label>
 
-      <div class="col-md-6">
-        <label class="form-label text-white">Desarrolladora</label>
-        <input
-          type="text"
-          class="form-control bg-secondary text-white border-secondary"
-          [(ngModel)]="desarrolladora"
-          placeholder="Ej: Nintendo">
+        <label class="field">
+          <span>Dirección</span>
+          <select [(ngModel)]="direccion">
+            <option value="ASC">Ascendente</option>
+            <option value="DESC">Descendente</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Juegos por página</span>
+          <select [(ngModel)]="limite" (change)="cambiarLimite()">
+            <option [ngValue]="10">10</option>
+            <option [ngValue]="20">20</option>
+            <option [ngValue]="50">50</option>
+            <option [ngValue]="100">100</option>
+          </select>
+        </label>
       </div>
 
-      <div class="col-md-3">
-        <label class="form-label text-white">Calificación mínima</label>
-        <input
-          type="number"
-          class="form-control bg-secondary text-white border-secondary"
-          [(ngModel)]="calificacionMin"
-          min="0"
-          max="100"
-          placeholder="0">
-      </div>
-
-      <div class="col-md-3">
-        <label class="form-label text-white">Calificación máxima</label>
-        <input
-          type="number"
-          class="form-control bg-secondary text-white border-secondary"
-          [(ngModel)]="calificacionMax"
-          min="0"
-          max="100"
-          placeholder="100">
-      </div>
-
-      <div class="col-md-4">
-        <label class="form-label text-white">Ordenar por</label>
-        <select
-          class="form-select bg-secondary text-white border-secondary"
-          [(ngModel)]="orden">
-
-          <option value="titulo">Título</option>
-          <option value="calificacion">Calificación</option>
-          <option value="fecha_lanzamiento">Fecha de lanzamiento</option>
-          <option value="desarrolladora">Desarrolladora</option>
-        </select>
-      </div>
-
-      <div class="col-md-4">
-        <label class="form-label text-white">Dirección</label>
-        <select
-          class="form-select bg-secondary text-white border-secondary"
-          [(ngModel)]="direccion">
-
-          <option value="ASC">Ascendente</option>
-          <option value="DESC">Descendente</option>
-        </select>
-      </div>
-
-      <div class="col-md-4">
-        <label class="form-label text-white">Juegos por página</label>
-        <select
-          class="form-select bg-secondary text-white border-secondary"
-          [(ngModel)]="limite"
-          (change)="cambiarLimite()">
-
-          <option [ngValue]="10">10</option>
-          <option [ngValue]="20">20</option>
-          <option [ngValue]="50">50</option>
-          <option [ngValue]="100">100</option>
-        </select>
-      </div>
-
-      <div class="col-12">
-        <button
-          class="btn btn-info fw-bold"
-          (click)="aplicarFiltros()">
-          <i class="bi bi-search me-2"></i>
+      <div class="filter-actions">
+        <button class="primary-button" type="button" (click)="aplicarFiltros()">
           Aplicar filtros
         </button>
-
         <button
-          class="btn btn-outline-light ms-2"
-          (click)="desarrolladora = ''; calificacionMin = null; calificacionMax = null; orden = 'titulo'; direccion = 'ASC'; aplicarFiltros()">
+          class="secondary-button"
+          type="button"
+          (click)="
+            desarrolladora = '';
+            calificacionMin = null;
+            calificacionMax = null;
+            orden = 'titulo';
+            direccion = 'ASC';
+            aplicarFiltros()
+          "
+        >
           Limpiar filtros
         </button>
       </div>
+    </aside>
 
-    </div>
-  </div>
+    <section class="matches" aria-label="Juegos encontrados" [attr.aria-busy]="cargando">
+      <p class="count" *ngIf="!cargando" role="status">
+        {{ total }} {{ total === 1 ? 'juego encontrado' : 'juegos encontrados' }}
+      </p>
 
-  <!-- Información de resultados -->
-  <div *ngIf="!cargando" class="text-secondary mb-3">
-    Se encontraron {{ total }} juegos.
-  </div>
-
-  <!-- Cargando -->
-  <div *ngIf="cargando" class="text-center my-5">
-    <div class="spinner-border text-info" role="status">
-      <span class="visually-hidden">Cargando...</span>
-    </div>
-  </div>
-
-  <!-- Sin resultados -->
-  <div
-    *ngIf="!cargando && resultados.length === 0"
-    class="alert bg-dark text-white border-secondary text-center fs-5 shadow-sm">
-
-    <i class="bi bi-emoji-frown me-2 text-warning"></i>
-    No encontramos juegos que coincidan con tu búsqueda.
-  </div>
-
-  <!-- Lista de resultados -->
-  <div *ngIf="!cargando && resultados.length > 0"
-       class="d-flex flex-column gap-2">
-
-    <div
-      *ngFor="let juego of resultados"
-      class="card border-0 rounded-0 steam-row shadow-sm"
-      (click)="verDetalle(juego.id)">
-
-      <div class="row g-0 align-items-center h-100">
-
-        <div class="col-auto h-100">
-          <img
-            [src]="juego.imagen_portada || 'assets/placeholder.jpg'"
-            class="steam-img object-fit-cover"
-            [alt]="juego.titulo">
-        </div>
-
-        <div class="col px-3 py-2 d-flex flex-column justify-content-between h-100">
-
-          <div>
-            <h5 class="fw-bold mb-1 steam-title text-truncate">
-              {{ juego.titulo }}
-            </h5>
-
-            <div class="d-flex gap-2 text-secondary fs-6 mt-2">
-              <i
-                *ngFor="let icono of obtenerIconosPlataformas(juego.plataformas)"
-                [class]="'bi ' + icono">
-              </i>
-            </div>
-          </div>
-
-        </div>
-
-        <div class="col-auto pe-4 text-end d-none d-md-block">
-
-          <div class="text-secondary mb-2 text-uppercase"
-               style="font-size: 0.80rem; letter-spacing: 0.5px;">
-
-            {{ juego.fecha_lanzamiento
-              ? (juego.fecha_lanzamiento | date:'dd MMM yyyy')
-              : 'Próximamente' }}
-          </div>
-
-          <div class="d-flex gap-1 justify-content-end flex-wrap"
-               style="max-width: 150px;">
-
-            <span
-              class="badge bg-secondary bg-opacity-25 text-light border border-secondary"
-              *ngFor="let genero of (juego.generos | slice:0:2)">
-
-              {{ genero }}
-            </span>
-
-          </div>
-
-        </div>
-
+      <div *ngIf="cargando" class="status" role="status">
+        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+        Buscando juegos…
       </div>
-    </div>
 
+      <div *ngIf="!cargando && resultados.length === 0" class="status">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        No encontramos juegos que coincidan con tu búsqueda.
+      </div>
+
+      <ul *ngIf="!cargando && resultados.length > 0" class="match-list">
+        <li *ngFor="let juego of resultados">
+          <button type="button" class="match" (click)="verDetalle(juego.id)">
+            <span class="match-cover">
+              <img
+                *ngIf="juego.imagen_portada"
+                [src]="juego.imagen_portada"
+                alt=""
+                loading="lazy"
+              />
+            </span>
+            <span class="match-copy">
+              <strong>{{ juego.titulo }}</strong>
+              <span class="match-platforms" [attr.aria-label]="juego.plataformas?.join(', ')">
+                <i
+                  *ngFor="let icono of obtenerIconosPlataformas(juego.plataformas)"
+                  [class]="'bi ' + icono"
+                  aria-hidden="true"
+                ></i>
+              </span>
+              <span class="tags" *ngIf="juego.generos?.length">
+                <span *ngFor="let genero of juego.generos | slice: 0 : 2">{{ genero }}</span>
+              </span>
+            </span>
+            <span class="match-date">{{
+              juego.fecha_lanzamiento
+                ? (juego.fecha_lanzamiento | date: 'dd MMM yyyy')
+                : 'Próximamente'
+            }}</span>
+            <i class="bi bi-chevron-right match-arrow" aria-hidden="true"></i>
+          </button>
+        </li>
+      </ul>
+
+      <nav
+        *ngIf="!cargando && totalPaginas > 1"
+        class="pagination-bar"
+        aria-label="Páginas de resultados"
+      >
+        <button
+          class="secondary-button"
+          type="button"
+          [disabled]="pagina === 1"
+          (click)="cambiarPagina(pagina - 1)"
+        >
+          <i class="bi bi-chevron-left" aria-hidden="true"></i> Anterior
+        </button>
+        <span>Página {{ pagina }} de {{ totalPaginas }}</span>
+        <button
+          class="secondary-button"
+          type="button"
+          [disabled]="pagina === totalPaginas"
+          (click)="cambiarPagina(pagina + 1)"
+        >
+          Siguiente <i class="bi bi-chevron-right" aria-hidden="true"></i>
+        </button>
+      </nav>
+    </section>
   </div>
-
-  <!-- Paginación -->
-  <div
-    *ngIf="!cargando && totalPaginas > 1"
-    class="d-flex justify-content-center align-items-center gap-3 mt-4">
-
-    <button
-      class="btn btn-outline-info"
-      [disabled]="pagina === 1"
-      (click)="cambiarPagina(pagina - 1)">
-
-      <i class="bi bi-chevron-left"></i>
-      Anterior
-    </button>
-
-    <span class="text-white">
-      Página {{ pagina }} de {{ totalPaginas }}
-    </span>
-
-    <button
-      class="btn btn-outline-info"
-      [disabled]="pagina === totalPaginas"
-      (click)="cambiarPagina(pagina + 1)">
-
-      Siguiente
-      <i class="bi bi-chevron-right"></i>
-    </button>
-
-  </div>
-
-</div>
+</main>

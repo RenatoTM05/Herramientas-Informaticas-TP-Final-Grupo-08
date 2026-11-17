@@ -1,196 +1,170 @@
+<main class="detail">
+  <a class="back-link" routerLink="/"
+    ><i class="bi bi-arrow-left" aria-hidden="true"></i> Catálogo</a
+  >
 
-<div class="container mt-5 mb-5">
-
-  <div *ngIf="cargando" class="text-center py-5">
-    <div class="spinner-border text-primary" role="status">
-      <span class="visually-hidden">Cargando juego...</span>
-    </div>
-    <p class="mt-3">Buscando información en la base de datos...</p>
+  <div *ngIf="cargando" class="status" role="status">
+    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+    Cargando juego…
   </div>
 
-  <div *ngIf="error && !cargando" class="alert alert-danger" role="alert">
+  <div *ngIf="error && !cargando" class="status error" role="alert">
     No se pudo cargar la información del juego o no existe.
   </div>
 
-  <div *ngIf="!cargando && juego">
-
-    <!-- Información principal -->
-    <div class="row">
-      <div class="col-md-4 mb-4 text-center">
+  <ng-container *ngIf="!cargando && juego">
+    <header class="game-header">
+      <div class="main-cover">
         <img
-          [src]="juego.imagen_portada || 'assets/placeholder.jpg'"
-          alt="Portada de {{ juego.titulo }}"
-          class="img-fluid rounded shadow-lg"
-          style="max-height: 500px; object-fit: cover;">
+          *ngIf="juego.imagen_portada"
+          [src]="juego.imagen_portada"
+          [alt]="'Portada de ' + juego.titulo"
+        />
       </div>
 
-      <div class="col-md-8">
-        <h1 class="display-4 fw-bold">{{ juego.titulo }}</h1>
+      <div class="game-meta">
+        <h1>{{ juego.titulo }}</h1>
 
-        <p class="text-muted fs-5">
-          Desarrollador:
-          <span class="fw-semibold text-dark">{{ juego.desarrolladora }}</span>
-          | Lanzamiento: {{ juego.fecha_lanzamiento }}
-        </p>
-
-        <div class="mb-3 d-flex align-items-center gap-2">
-          <span class="badge bg-warning text-dark fs-6 p-2 rounded-pill shadow-sm">
-            <i class="bi bi-star-fill"></i>
-            Rating: {{ juego.calificacion ? juego.calificacion + '/100' : 'N/A' }}
-          </span>
+        <div class="metadata">
+          <span>{{ juego.desarrolladora || 'Desarrolladora sin informar' }}</span>
+          <span *ngIf="juego.fecha_lanzamiento">{{ juego.fecha_lanzamiento }}</span>
         </div>
 
-        <div class="mb-3">
-          <strong>Géneros:</strong>
-          <span *ngFor="let gen of juego.generos" class="badge bg-primary ms-1">
-            {{ gen }}
-          </span>
+        <div class="rating">
+          <i class="bi bi-star-fill me-1" aria-hidden="true"></i>
+          {{ juego.calificacion != null ? juego.calificacion + '/100' : 'Sin calificación' }}
         </div>
 
-        <div class="mb-4">
-          <strong>Plataformas:</strong>
-          <span *ngFor="let plat of juego.plataformas" class="badge bg-secondary ms-1">
-            {{ plat }}
-          </span>
-        </div>
+        <dl class="specs">
+          <div *ngIf="juego.generos?.length">
+            <dt>Géneros</dt>
+            <dd class="tags">
+              <span *ngFor="let gen of juego.generos">{{ gen }}</span>
+            </dd>
+          </div>
+          <div *ngIf="juego.plataformas?.length">
+            <dt>Plataformas</dt>
+            <dd class="tags">
+              <span *ngFor="let plat of juego.plataformas">{{ plat }}</span>
+            </dd>
+          </div>
+        </dl>
 
-        <h4 class="fw-bold">Acerca del juego</h4>
-        <p class="lead" style="text-align: justify;">{{ juego.descripcion }}</p>
-      </div>
-    </div>
-
-    <hr class="my-5">
-
-    <!-- Tráiler y capturas -->
-    <div class="row">
-      <div class="col-lg-6 mb-4" *ngIf="trailerUrl">
-        <h3 class="fw-bold mb-3">Tráiler Oficial</h3>
-        <div class="ratio ratio-16x9 shadow rounded overflow-hidden">
-          <iframe [src]="trailerUrl" allowfullscreen></iframe>
+        <div class="description" *ngIf="juego.descripcion">
+          <h2>Acerca del juego</h2>
+          <p>{{ juego.descripcion }}</p>
         </div>
       </div>
+    </header>
 
-      <div class="col-lg-6 mb-4" *ngIf="juego.capturas?.length > 0">
-        <h3 class="fw-bold mb-3">Capturas</h3>
-        <div class="d-flex flex-wrap gap-2">
+    <div class="media-grid" *ngIf="trailerUrl || juego.capturas?.length">
+      <section *ngIf="trailerUrl" aria-labelledby="trailer-title">
+        <h2 id="trailer-title">Tráiler oficial</h2>
+        <div class="ratio ratio-16x9 trailer">
+          <iframe
+            [src]="trailerUrl"
+            [title]="'Tráiler de ' + juego.titulo"
+            allowfullscreen
+          ></iframe>
+        </div>
+      </section>
+
+      <section *ngIf="juego.capturas?.length > 0" aria-labelledby="screenshots-title">
+        <h2 id="screenshots-title">Capturas</h2>
+        <div class="screenshots">
           <img
             *ngFor="let img of juego.capturas"
             [src]="img"
-            class="img-thumbnail rounded shadow-sm"
-            alt="Captura"
-            style="width: 48%; object-fit: cover;">
+            [alt]="'Captura de ' + juego.titulo"
+            loading="lazy"
+          />
         </div>
-      </div>
+      </section>
     </div>
 
-    <!-- Juegos similares -->
-    <div *ngIf="juego.juegos_similares?.length > 0" class="mt-5">
-      <h3 class="fw-bold mb-3">Juegos Similares</h3>
-
-      <div class="d-flex overflow-auto gap-3 py-3" style="scrollbar-width: thin;">
-        <div
+    <section
+      *ngIf="juego.juegos_similares?.length > 0"
+      class="detail-section"
+      aria-labelledby="similar-title"
+    >
+      <h2 id="similar-title">Juegos similares</h2>
+      <div class="similar-list">
+        <a
           *ngFor="let sim of juego.juegos_similares"
-          class="card shadow-sm flex-shrink-0"
-          style="width: 12rem; cursor: pointer;"
-          [routerLink]="['/juego', sim.id]">
-
-          <img
-            [src]="sim.imagen_portada || 'assets/placeholder.jpg'"
-            class="card-img-top"
-            alt="{{ sim.titulo }}"
-            style="height: 250px; object-fit: cover;">
-
-          <div class="card-body p-2">
-            <h6 class="card-title text-center text-truncate m-0" title="{{ sim.titulo }}">
-              {{ sim.titulo }}
-            </h6>
-          </div>
-        </div>
+          class="similar-card"
+          [routerLink]="['/juego', sim.id]"
+        >
+          <span class="similar-cover">
+            <img *ngIf="sim.imagen_portada" [src]="sim.imagen_portada" alt="" loading="lazy" />
+          </span>
+          <strong>{{ sim.titulo }}</strong>
+        </a>
       </div>
-    </div>
+    </section>
 
-    <!-- Reseñas del juego -->
-    <div class="mt-5">
-      <hr class="my-5">
-
-      <h3 class="fw-bold mb-4">
+    <section class="detail-section reviews" aria-labelledby="reviews-title">
+      <h2 id="reviews-title" class="d-flex flex-wrap align-items-center gap-2">
         Reseñas de la comunidad
-        <span class="badge bg-secondary">{{ totalResenas }}</span>
-      </h3>
+        <span class="review-count" *ngIf="!cargandoResenas && !errorResenas">{{
+          totalResenas
+        }}</span>
+      </h2>
 
-      <div *ngIf="cargandoResenas" class="text-center py-4">
-        <div class="spinner-border text-primary" role="status"></div>
-        <p class="mt-2">Cargando reseñas...</p>
+      <div *ngIf="cargandoResenas" class="status" role="status">
+        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+        Cargando reseñas…
       </div>
 
-      <div *ngIf="errorResenas && !cargandoResenas" class="alert alert-danger">
+      <div *ngIf="errorResenas && !cargandoResenas" class="status error" role="alert">
         No se pudieron cargar las reseñas.
       </div>
 
-      <div *ngIf="!cargandoResenas && !errorResenas">
-
-        <div *ngIf="resenas.length === 0" class="alert alert-info">
+      <ng-container *ngIf="!cargandoResenas && !errorResenas">
+        <div *ngIf="resenas.length === 0" class="status">
           Todavía no hay reseñas para este juego.
         </div>
 
-        <div *ngFor="let resena of resenas" class="card shadow-sm mb-3">
-          <div class="card-body">
-
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <div class="d-flex align-items-center gap-2">
-                <img
-                  *ngIf="resena.usuario?.foto"
-                  [src]="resena.usuario.foto"
-                  alt="Foto de usuario"
-                  class="rounded-circle"
-                  style="width: 40px; height: 40px; object-fit: cover;">
-
-                <strong>
-                  {{ resena.usuario?.nombre || resena.usuario?.username || 'Usuario' }}
-                </strong>
-              </div>
-
-              <small class="text-muted">
-                {{ resena.createdAt | date:'dd/MM/yyyy' }}
-              </small>
-            </div>
-
-            <p class="mb-2">{{ resena.texto }}</p>
-
-            <span class="text-muted">
-              <i class="bi bi-hand-thumbs-up"></i>
-              {{ resena.likes || 0 }} likes
+        <article *ngFor="let resena of resenas" class="review">
+          <header class="review-header">
+            <span class="avatar">
+              <img
+                *ngIf="resena.usuario?.foto; else avatarIcon"
+                [src]="resena.usuario.foto"
+                alt=""
+                loading="lazy"
+              />
+              <ng-template #avatarIcon><i class="bi bi-person" aria-hidden="true"></i></ng-template>
             </span>
+            <strong>{{ resena.usuario?.nombre || resena.usuario?.username || 'Usuario' }}</strong>
+            <small>{{ resena.createdAt | date: 'dd/MM/yyyy' }}</small>
+          </header>
 
-          </div>
-        </div>
+          <p class="my-2">{{ resena.texto }}</p>
 
-        <!-- Paginación -->
-        <div
-          *ngIf="totalPaginasResenas > 1"
-          class="d-flex justify-content-center align-items-center gap-3 mt-4">
-
-          <button
-            class="btn btn-outline-primary"
-            [disabled]="paginaResenas <= 1 || cargandoResenas"
-            (click)="cargarResenas(juego.id, paginaResenas - 1)">
-            Anterior
-          </button>
-
-          <span>
-            Página {{ paginaResenas }} de {{ totalPaginasResenas }}
+          <span class="likes small">
+            <i class="bi bi-hand-thumbs-up" aria-hidden="true"></i>
+            {{ resena.likes || 0 }} me gusta
           </span>
+        </article>
 
+        <nav *ngIf="totalPaginasResenas > 1" class="pagination-bar" aria-label="Páginas de reseñas">
           <button
-            class="btn btn-outline-primary"
-            [disabled]="paginaResenas >= totalPaginasResenas || cargandoResenas"
-            (click)="cargarResenas(juego.id, paginaResenas + 1)">
-            Siguiente
+            type="button"
+            [disabled]="paginaResenas <= 1 || cargandoResenas"
+            (click)="cargarResenas(juego.id, paginaResenas - 1)"
+          >
+            <i class="bi bi-chevron-left" aria-hidden="true"></i> Anterior
           </button>
-
-        </div>
-      </div>
-    </div>
-
-  </div>
-</div>
+          <span>Página {{ paginaResenas }} de {{ totalPaginasResenas }}</span>
+          <button
+            type="button"
+            [disabled]="paginaResenas >= totalPaginasResenas || cargandoResenas"
+            (click)="cargarResenas(juego.id, paginaResenas + 1)"
+          >
+            Siguiente <i class="bi bi-chevron-right" aria-hidden="true"></i>
+          </button>
+        </nav>
+      </ng-container>
+    </section>
+  </ng-container>
+</main>

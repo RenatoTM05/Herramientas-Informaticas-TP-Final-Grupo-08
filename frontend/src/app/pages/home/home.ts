@@ -1,13 +1,11 @@
-import { Component, OnInit, ChangeDetectorRef, HostListener } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { JuegosService } from '../../services/juegos.service'; 
-import { PagoService } from '../../services/pago'; // 1. PASO 1: IMPORTAMOS EL NUEVO SERVICIO
 import { Subject } from 'rxjs'; 
 import { Router } from '@angular/router'; // Importamos Router para poder redirigir a la página de detalle
 //import { JuegosService } from '../../services/juegos.service'; // Ajustado al nombre correcto del servicio
 //import { Subject } from 'rxjs'; // Importamos Subject para el buscador
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
-import Swal from 'sweetalert2';
 //import { Router } from '@angular/router';
 
 @Component({
@@ -25,13 +23,10 @@ export class HomeComponent implements OnInit {
   // --- VARIABLES PARA EL BUSCADOR DESPLEGABLE ---
   sugerenciasBusqueda: any[] = [];
   mostrarSugerencias: boolean = false;
-  esPremiumSticky: boolean = false;
   private buscadorSubject = new Subject<string>();
 
-  // 2. PASO 2: INYECTAMOS EL PagoService EN EL CONSTRUCTOR (Separado por coma)
   constructor(
     private juegosService: JuegosService, 
-    private pagoService: PagoService, 
     private cdr: ChangeDetectorRef,
     private router: Router
   ) { }
@@ -144,75 +139,5 @@ obtenerIconosPlataformas(plataformas: any[]): string[] {
       this.mostrarSugerencias = false;
       this.router.navigate(['/Resultados', termino.trim()]);
     }
-  }
-
-  @HostListener('window:scroll', [])
-  onWindowScroll() {
-    const pixelesRecorridos = window.scrollY || document.documentElement.scrollTop;
-    this.esPremiumSticky = pixelesRecorridos > 1000;
-    this.cdr.detectChanges();
-  }
-
-  juegosPremium: any[] = [
-    { juegoId: 'p1', titulo: 'GTA VI (Alpha Build)', precio: 2500, imagen_portada: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=400' },
-    { juegoId: 'p2', titulo: 'Hades II (Early Access)', precio: 1800, imagen_portada: 'https://images.unsplash.com/photo-1552820728-8b83bb6b773f?q=80&w=400' },
-    { juegoId: 'p3', titulo: 'Silksong (Beta Test)', precio: 1500, imagen_portada: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=400' },
-    { juegoId: 'p4', titulo: 'Witcher 4 (Tech Demo)', precio: 3000, imagen_portada: 'https://images.unsplash.com/photo-1612287230202-1bf1d85d1bdf?q=80&w=400' },
-    { juegoId: 'p5', titulo: 'Cyberpunk 2 (Concept Dev)', precio: 2200, imagen_portada: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=400' }
-  ];
-
-  // 3. PASO 3: CONECTAMOS LA LÓGICA DE MERCADO PAGO REAL
-  comprarAcceso(juego: any) {
-    const token = localStorage.getItem('token'); 
-
-    if (!token) {
-      Swal.fire({
-        title: '¡Acceso Restringido!',
-        text: 'Para adquirir pases de pre-lanzamiento e ingresar al simulador debés iniciar sesión.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#0dcaf0',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Ir al Login',
-        cancelButtonText: 'Cancelar'
-      }).then((result) => {
-        if (result.isConfirmed) {
-          // Acá podés poner la redirección si tenés el router activo
-          this.router.navigate(['./Login']);
-        }
-      });
-      return;
-    }
-
-    console.log("Generando preferencia para:", juego.titulo);
-    
-    // Mostramos la alerta de carga
-    Swal.fire({
-      title: 'Procesando con Mercado Pago...',
-      text: `Preparando tu orden para ${juego.titulo}`,
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      }
-    });
-
-
-    // Llamamos al servicio para pedirle la preferencia al backend
-    this.pagoService.crearPreferencia(juego.juegoId, juego.titulo, juego.precio).subscribe({
-      next: (res:any) => {
-        Swal.close(); // Cerramos el loading
-        if (res.status === "1" && res.init_point) {
-          // ¡REDIRECCIÓN! Viajamos a la pasarela de Mercado Pago de verdad
-          window.location.href = res.init_point;
-        } else {
-          Swal.fire('Error', 'No se pudo generar el enlace de pago.', 'error');
-        }
-      },
-      error: (err:any) => {
-        Swal.close();
-        console.error('Error al conectar con el backend:', err);
-        Swal.fire('Error', 'Hubo un problema al procesar el pago. Comprobá que el backend esté encendido.', 'error');
-      }
-    });
   }
 }
