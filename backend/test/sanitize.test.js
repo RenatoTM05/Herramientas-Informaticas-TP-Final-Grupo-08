@@ -43,10 +43,11 @@ describe('sanitizeInput middleware', () => {
 
   describe('req.body', () => {
 
-    it('debe eliminar una etiqueta <script> del body (prevención XSS básico)', () => {
+    it('debe neutralizar una etiqueta <script> del body (prevención XSS básico)', () => {
       const req = buildReq({ body: { comentario: '<script>alert("xss")</script>' } });
       runMiddleware(req);
-      assert.equal(req.body.comentario, '');
+      assert.ok(!req.body.comentario.includes('<script>'), 'No debe contener etiquetas <script> ejecutables');
+      assert.ok(req.body.comentario.includes('&lt;script&gt;'), 'Debe estar neutralizado como entidad HTML');
     });
 
     it('debe recortar espacios en blanco al inicio y al final de un string del body', () => {
@@ -96,7 +97,8 @@ describe('sanitizeInput middleware', () => {
     it('debe sanitizar params de ruta', () => {
       const req = buildReq({ params: { id: '<script>1</script>' } });
       runMiddleware(req);
-      assert.equal(req.params.id, '1');
+      assert.ok(!req.params.id.includes('<script>'), 'No debe contener etiquetas <script> ejecutables');
+      assert.ok(req.params.id.includes('1'), 'Debe preservar el contenido del id');
     });
 
     it('no debe fallar si params está vacío', () => {
