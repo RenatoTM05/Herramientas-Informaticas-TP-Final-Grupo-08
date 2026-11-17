@@ -19,6 +19,7 @@ export const routes: Routes = [
   { path: 'registro', redirectTo: 'Registro' },
   { path: 'pago-exitoso', component: PagoExitosoComponent },
   { path: 'Resultados/:termino', component: ResultadosComponent },
+  { path: 'Resultados', component: ResultadosComponent },
   
   // Ponemos las rutas con ID bien arriba para que Angular las lea primero
   // Soporte para ruta de tarjeta del catálogo y para ruta de sugerencia del buscador
