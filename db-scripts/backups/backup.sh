@@ -8,6 +8,7 @@ BACKUP_DIR="${BACKUP_DIR:-/backups}"
 RETENTION="${BACKUP_RETENTION_DAYS:-7}"
 [[ "$RETENTION" =~ ^[1-9][0-9]*$ ]] || { echo 'ERROR retención inválida' >&2; exit 1; }
 mkdir -p "$BACKUP_DIR"
+chmod 755 "$BACKUP_DIR"
 # flock se libera incluso si el proceso falla; evita dos dumps simultáneos.
 exec 9>"$BACKUP_DIR/.backup.lock"
 flock -n 9 || { echo 'ERROR ya hay un backup en ejecución' >&2; exit 1; }
@@ -33,6 +34,9 @@ pg_restore --list "$tmp" >/dev/null
 checksum=$(sha256sum "$tmp")
 printf '%s  %s\n' "${checksum%% *}" "$name" >"$BACKUP_DIR/$name.sha256"
 mv -- "$tmp" "$BACKUP_DIR/$name"
+chmod 644 "$BACKUP_DIR/$name" "$BACKUP_DIR/$name.sha256"
+chmod 755 "$BACKUP_DIR"
+chmod 644 "$BACKUP_DIR"/backup_* 2>/dev/null || true
 bytes=$(stat -c %s "$BACKUP_DIR/$name")
 printf '%s SUCCESS file=%s bytes=%s duration_seconds=%s\n' "$(date -u +%FT%TZ)" "$name" "$bytes" "$((SECONDS-started))"
 # Solo elimina copias propias antiguas después de generar una copia válida.
