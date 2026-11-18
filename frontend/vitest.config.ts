@@ -17,11 +17,5 @@ export default defineConfig({
 
     // Reporte legible en logs de GitHub Actions
     reporter: ['verbose'],
-
-    // Umbral mínimo de cobertura (opcional, activar si se configura coverage)
-    // coverage: {
-    //   provider: 'v8',
-    //   thresholds: { statements: 60, branches: 60, functions: 60, lines: 60 }
-    // },
   },
 });

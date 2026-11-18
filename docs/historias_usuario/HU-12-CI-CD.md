@@ -1,14 +1,5 @@
 # Historia de Usuario 12: Pipeline Automatizado de CI/CD con GitHub Actions
 
-**Proyecto:** Red Social Gamer y Catálogo de Videojuegos con Moderación IA  
-**Cátedra:** Herramientas Informáticas Avanzadas - Grupo 08  
-**Fase / Sprint:** Fase 4 (Sprint 4)  
-**Rol:** DevOps Engineer  
-**Historia de Usuario:** HU-12  
-**Estado:** Finalizado (Criterios de Aceptación 100% Cumplidos)
-
----
-
 ## 1. Descripción y Criterios de Aceptación
 
 ### Enunciado de la HU:
@@ -29,24 +20,24 @@
 
 ```mermaid
 flowchart TD
-    TRIGGER["🔔 Disparador\npush / pull_request\nmain · develop · feature/** · fix/**"]
+    TRIGGER[" Disparador\npush / pull_request\nmain · develop · feature/** · fix/**"]
 
     subgraph Linting["Etapa 1 - Linting (en paralelo)"]
-        LB["🔍 lint-backend\nnode --check .js"]
-        LF["🔍 lint-frontend\nprettier --check src/**"]
+        LB[" lint-backend\nnode --check .js"]
+        LF[" lint-frontend\nprettier --check src/**"]
     end
 
     subgraph Testing["Etapa 2 - Tests Unitarios"]
-        TB["🧪 test-backend\nnode --test\n(Node.js built-in runner)\nDepende de: lint-backend"]
-        TF["🧪 test-frontend\nng test --no-progress\n(Angular + Vitest headless)\nDepende de: lint-frontend"]
+        TB[" test-backend\nnode --test\n(Node.js built-in runner)\nDepende de: lint-backend"]
+        TF[" test-frontend\nng test --no-progress\n(Angular + Vitest headless)\nDepende de: lint-frontend"]
     end
 
     subgraph Build["Etapa 3 - Build y Publicación"]
-        BP["🐳 build-and-push\nDocker multi-stage build\nBackend: Node.js 22 non-root\nFrontend: Nginx Alpine\nPush → ghcr.io\nSolo en push a main/develop\nDepende de: test-backend + test-frontend"]
+        BP[" build-and-push\nDocker multi-stage build\nBackend: Node.js 22 non-root\nFrontend: Nginx Alpine\nPush → ghcr.io\nSolo en push a main/develop\nDepende de: test-backend + test-frontend"]
     end
 
     subgraph Deploy["Etapa 4 - Verificación de Staging"]
-        DS["🚀 deploy-staging\ndocker compose config --quiet\nVerifica sintaxis Compose\nSolo en push a main/develop\nDepende de: build-and-push"]
+        DS[" deploy-staging\ndocker compose config --quiet\nVerifica sintaxis Compose\nSolo en push a main/develop\nDepende de: build-and-push"]
     end
 
     TRIGGER --> LB & LF
@@ -212,9 +203,9 @@ Para demostrar el bloqueo del pipeline ante código defectuoso (Commits 5 y 6 de
    // En backend/test/sanitize.test.js — modificación temporal para demo
    assert.equal(req.body.comentario, 'VALOR_INCORRECTO_INTENCIONAL'); // ← falla
    ```
-2. Hacer push → el pipeline falla en `test-backend` ❌
+2. Hacer push → el pipeline falla en `test-backend` 
 3. GitHub bloquea el merge del PR (si las branch protection rules exigen checks en verde).
-4. Revertir la aserción al valor correcto → push → pipeline vuelve a verde ✅
+4. Revertir la aserción al valor correcto → push → pipeline vuelve a verde 
 
 > [!CAUTION]
 > Los commits de simulación de fallo (5 y 6 del plan) deben realizarse **después** del merge del PR de esta HU a `develop`, en una rama separada de demo, para que el historial de `develop` permanezca limpio.
