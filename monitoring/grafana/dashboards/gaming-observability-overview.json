@@ -35,6 +35,8 @@
         {
           "expr": "patroni_primary{cluster=\"gamer-postgres\"} == 1",
           "legendFormat": "{{name}} (Líder)",
+          "instant": true,
+          "range": false,
           "refId": "A"
         }
       ],
@@ -377,7 +379,7 @@
   "style": "dark",
   "tags": ["gaming", "observability", "patroni", "prometheus", "grafana"],
   "time": {
-    "from": "now-15m",
+    "from": "now-1m",
     "to": "now"
   },
   "timepicker": {
