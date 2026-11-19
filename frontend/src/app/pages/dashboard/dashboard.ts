@@ -1,8 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit,ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import {BaseChartDirective} from 'ng2-charts';
+import { BaseChartDirective } from 'ng2-charts';
 import { DashboardService } from '../../services/dashboard.service';
+import { JuegosService } from '../../services/juegos.service';
+import Swal from 'sweetalert2';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
@@ -11,42 +13,74 @@ Chart.register(...registerables);
 
 @Component({
   selector: 'app-dashboard',
-  imports: [CommonModule,FormsModule,BaseChartDirective],
+  imports: [CommonModule, FormsModule, BaseChartDirective],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })
-export class Dashboard implements OnInit{
-  estadisticas: any={
+export class Dashboard implements OnInit {
+  estadisticas: any = {
     totalUsuarios: 0,
-    usuariosNuevos:0,
-    loginsHoy:0,
-    totalAcciones:0
-  }
+    usuariosNuevos: 0,
+    loginsHoy: 0,
+    totalAcciones: 0
+  };
 
-  //arrrays para los graficos
-  loginsPorDia:any[]=[]
-  accionesPorTipo:any[]=[]
-  usuariosActivos:any[]=[]
-  juegosBuscados:any[]=[]
+  // Arrays para los gráficos
+  loginsPorDia: any[] = [];
+  accionesPorTipo: any[] = [];
+  usuariosActivos: any[] = [];
+  juegosBuscados: any[] = [];
 
-  registrosAuditoria:any[]=[]
-  totalRegistros=0
-  paginaActual=1  //valores por defecto
-  registrosPorPagina=10
-  terminoBusqueda:string=''
-  totalPaginas=0
+  registrosAuditoria: any[] = [];
+  totalRegistros = 0;
+  paginaActual = 1;
+  registrosPorPagina = 10;
+  terminoBusqueda: string = '';
+  totalPaginas = 1;
 
+  configGraficoLinea: any = { labels: [], datasets: [] };
+  opcionesDeLinea = { responsive: true };
 
-  configGraficoLinea:any={labels:[],datasets:[]}
-  opcionesDeLinea={responsive:true}
+  configGraficoTorta: any = { labels: [], datasets: [] };
+  opcionesTorta = { responsive: true };
 
-  configGraficoTorta:any={labels:[],datasets:[]}
-  opcionesTorta={responsive:true}
+  configGraficoBarras: any = { labels: [], datasets: [] };
+  opcionesBarras = { responsive: true };
 
-  configGraficoBarras:any={labels:[],datasets:[]}
-  opcionesBarras={responsive:true}
+  configGraficoJuegos: any = { labels: [], datasets: [] };
+  opcionesJuegos = {
+    responsive: true,
+    plugins: {
+      legend: { display: false }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: { precision: 0 }
+      }
+    }
+  };
 
-  constructor(private serviciosDashboard: DashboardService, private cdr: ChangeDetectorRef){}
+  // Modal para Crear Juego
+  mostrarModalCrearJuego = false;
+  guardandoJuego = false;
+  nuevoJuego = {
+    titulo: '',
+    descripcion: '',
+    desarrolladora: '',
+    fecha_lanzamiento: '',
+    calificacion: 85,
+    imagen_portada: '',
+    plataformas: 'PC, PlayStation 5, Xbox Series X',
+    generos: 'Acción, Aventura',
+    trailer_id: ''
+  };
+
+  constructor(
+    private serviciosDashboard: DashboardService,
+    private juegosService: JuegosService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.cargarTodo()
@@ -127,9 +161,9 @@ obtenerAuditoria():void{
   ).subscribe({
     next:(respuesta)=>{
       if(respuesta.status === '1'){
-        this.registrosAuditoria=respuesta.data
-        this.totalRegistros=respuesta.total
-        this.totalPaginas=respuesta.totalPaginas
+        this.registrosAuditoria = respuesta.data || [];
+        this.totalRegistros = respuesta.total || 0;
+        this.totalPaginas = respuesta.totalPaginas || respuesta.totalPages || 1;
         this.cdr.detectChanges();
       }
     },
@@ -144,7 +178,8 @@ obtenerJuegosBuscados(): void {
     this.serviciosDashboard.getJuegosBuscados().subscribe({
       next: (respuesta) => {
         if (respuesta.status === '1') {
-          this.juegosBuscados = respuesta.data
+          this.juegosBuscados = respuesta.data || [];
+          this.actualizarGraficoJuegos();
           this.cdr.detectChanges();
         }
       },
@@ -302,5 +337,90 @@ exportarPDF(): void {
 
       doc.save(`auditoria_${new Date().toISOString().split('T')[0]}.pdf`)
     }
- 
+
+  actualizarGraficoJuegos(): void {
+    const etiquetas = this.juegosBuscados.map(j => j.resultado || 'Sin término');
+    const cantidades = this.juegosBuscados.map(j => Number(j.cantidad) || 0);
+    const colores = ['#dc3545', '#0dcaf0', '#ffc107', '#198754', '#6f42c1', '#fd7e14', '#20c997', '#d63384'];
+
+    this.configGraficoJuegos = {
+      labels: etiquetas,
+      datasets: [{
+        label: '🎮 Búsquedas / Consultas',
+        data: cantidades,
+        backgroundColor: colores.slice(0, etiquetas.length),
+        borderRadius: 8
+      }]
+    };
+  }
+
+  abrirModalCrearJuego(): void {
+    this.nuevoJuego = {
+      titulo: '',
+      descripcion: '',
+      desarrolladora: '',
+      fecha_lanzamiento: new Date().toISOString().split('T')[0],
+      calificacion: 85,
+      imagen_portada: '',
+      plataformas: 'PC, PlayStation 5, Xbox Series X',
+      generos: 'Acción, Aventura',
+      trailer_id: ''
+    };
+    this.mostrarModalCrearJuego = true;
+  }
+
+  cerrarModalCrearJuego(): void {
+    this.mostrarModalCrearJuego = false;
+  }
+
+  guardarJuego(): void {
+    if (!this.nuevoJuego.titulo.trim()) {
+      Swal.fire({
+        title: 'Campo Requerido',
+        text: 'Por favor, ingresá el título del juego.',
+        icon: 'warning',
+        background: '#1a1a1a',
+        color: '#fff',
+        confirmButtonColor: '#ffc107'
+      });
+      return;
     }
+
+    this.guardandoJuego = true;
+    this.juegosService.crearJuego(this.nuevoJuego).subscribe({
+      next: (res: any) => {
+        this.guardandoJuego = false;
+        this.cerrarModalCrearJuego();
+        Swal.fire({
+          title: '¡Juego Creado!',
+          text: `"${this.nuevoJuego.titulo}" se agregó correctamente al catálogo.`,
+          icon: 'success',
+          background: '#1a1a1a',
+          color: '#fff',
+          confirmButtonColor: '#0dcaf0'
+        });
+        this.obtenerEstadisticas();
+        this.obtenerAuditoria();
+      },
+      error: (err: any) => {
+        this.guardandoJuego = false;
+        console.error('Error al crear juego:', err);
+        Swal.fire({
+          title: 'Error al Guardar',
+          text: err.error?.msg || 'Ocurrió un error al intentar crear el juego.',
+          icon: 'error',
+          background: '#1a1a1a',
+          color: '#fff',
+          confirmButtonColor: '#fe4c55'
+        });
+      }
+    });
+  }
+
+  cambiarRegistrosPorPagina(cantidad: number): void {
+    this.registrosPorPagina = cantidad;
+    this.paginaActual = 1;
+    this.obtenerAuditoria();
+  }
+
+}

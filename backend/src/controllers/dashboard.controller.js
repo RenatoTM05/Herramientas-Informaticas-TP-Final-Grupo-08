@@ -145,67 +145,151 @@ funcionesDelDashboard.getUsuariosMasActivos = async (req, res) => {
 funcionesDelDashboard.getAuditoriaListado = async (req, res) => {
     try {
         console.log('🔍 getAuditoriaListado ejecutándose...')
-        const { page = 1, limit = 10, search = '' } = req.query
-        const offset = (page - 1) * limit
+        const page = Math.max(parseInt(req.query.page || req.query.pagina) || 1, 1);
+        const limit = Math.max(parseInt(req.query.limit || req.query.limite) || 10, 1);
+        const search = (req.query.search || req.query.busqueda || '').trim();
+        const offset = (page - 1) * limit;
 
-        const where = {}
+        const where = {};
         if (search) {
             where[Op.or] = [
                 { usuario: { [Op.iLike]: `%${search}%` } },
                 { accion: { [Op.iLike]: `%${search}%` } },
                 { ruta: { [Op.iLike]: `%${search}%` } }
-            ]
+            ];
         }
 
         const { count, rows } = await AuditoriaModel.findAndCountAll({
             where,
             order: [['fecha', 'DESC']],
-            limit: parseInt(limit),
-            offset: parseInt(offset)
-        })
+            limit: limit,
+            offset: offset
+        });
+
+        const totalPages = Math.ceil(count / limit) || 1;
+
         res.json({
             status: '1',
             data: rows,
             total: count,
-            page: parseInt(page),
-            totalPages: Math.ceil(count / limit)
-        })
+            page: page,
+            pagina: page,
+            totalPages: totalPages,
+            totalPaginas: totalPages
+        });
     } catch (error) {
-        console.error('❌ ERROR DETALLADO en getAuditoriaListado:', error)
+        console.error('❌ ERROR DETALLADO en getAuditoriaListado:', error);
         res.status(500).json({
             status: '0',
             error: error.message
-        })
+        });
     }
-}
+};
 
 funcionesDelDashboard.getJuegosMasBuscados = async (req, res) => {
     try {
-        console.log('🔍 getJuegosMasBuscados ejecutándose...')
-        // ✅ CORREGIDO: Usar Sequelize (mayúscula)
-        const juegosBuscados = await AuditoriaModel.findAll({
-            attributes: [
-                'resultado',
-                [Sequelize.fn('COUNT', Sequelize.col('id')), 'cantidad']
-            ],
+        console.log('🔍 getJuegosMasBuscados ejecutándose...');
+        const JuegoModel = require('../models/juego.model');
+
+        // Consultamos los registros de auditoría de búsquedas o consultas de juegos
+        const auditorias = await AuditoriaModel.findAll({
+            attributes: ['ruta', 'resultado', 'accion'],
             where: {
-                accion: 'BUSCAR_JUEGO'
+                accion: { [Op.in]: ['BUSCAR_JUEGO', 'DETALLE_JUEGO', 'CONSULTAR_JUEGO'] }
             },
-            group: ['resultado'],
-            order: [[Sequelize.literal('cantidad'), 'DESC']],
-            limit: 10
-        })
+            order: [['id', 'DESC']],
+            limit: 3000
+        });
+
+        const contadores = {};
+
+        for (const log of auditorias) {
+            let termino = null;
+
+            if (log.ruta) {
+                // Si la ruta contiene /sugerencias/:nombre
+                const sugerenciaMatch = log.ruta.match(/sugerencias\/([^/?]+)/i);
+                if (sugerenciaMatch) {
+                    termino = decodeURIComponent(sugerenciaMatch[1]).trim();
+                }
+
+                // Si la ruta contiene /detalles/:id o /detalle/:id
+                const detalleMatch = log.ruta.match(/detalle(?:s)?\/(\d+)/i);
+                if (!termino && detalleMatch) {
+                    termino = `ID_${detalleMatch[1]}`;
+                }
+            }
+
+            // Si resultado contiene un término textual que no es JSON
+            if (!termino && log.resultado && typeof log.resultado === 'string') {
+                const trimmed = log.resultado.trim();
+                if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+                    termino = trimmed;
+                }
+            }
+
+            if (termino) {
+                contadores[termino] = (contadores[termino] || 0) + 1;
+            }
+        }
+
+        // Ordenar los términos más buscados
+        let topJuegos = Object.keys(contadores)
+            .map(nombre => ({ resultado: nombre, cantidad: contadores[nombre] }))
+            .sort((a, b) => b.cantidad - a.cantidad)
+            .slice(0, 8);
+
+        // Si hay IDs en formato ID_XXXX, resolver los títulos desde el modelo Juego
+        const idsAResolver = topJuegos
+            .filter(j => j.resultado.startsWith('ID_'))
+            .map(j => parseInt(j.resultado.replace('ID_', ''), 10))
+            .filter(Boolean);
+
+        if (idsAResolver.length > 0) {
+            const juegosEncontrados = await JuegoModel.findAll({
+                where: { id: { [Op.in]: idsAResolver } },
+                attributes: ['id', 'titulo']
+            });
+
+            const mapaTitulos = {};
+            juegosEncontrados.forEach(j => { mapaTitulos[j.id] = j.titulo; });
+
+            topJuegos = topJuegos.map(j => {
+                if (j.resultado.startsWith('ID_')) {
+                    const id = j.resultado.replace('ID_', '');
+                    return {
+                        resultado: mapaTitulos[id] || `Juego #${id}`,
+                        cantidad: j.cantidad
+                    };
+                }
+                return j;
+            });
+        }
+
+        // Si no hay datos suficientes de auditoría, tomar juegos destacados como base
+        if (topJuegos.length === 0) {
+            const juegosDestacados = await JuegoModel.findAll({
+                order: [['calificacion', 'DESC']],
+                limit: 6,
+                attributes: ['titulo', 'calificacion']
+            });
+            topJuegos = juegosDestacados.map(j => ({
+                resultado: j.titulo,
+                cantidad: Math.round((j.calificacion || 80) / 10)
+            }));
+        }
+
         res.json({
             status: '1',
-            data: juegosBuscados
-        })
+            data: topJuegos
+        });
     } catch (error) {
-        console.error('❌ ERROR DETALLADO en getJuegosBuscados:', error)
+        console.error('❌ ERROR DETALLADO en getJuegosBuscados:', error);
         res.status(500).json({
             status: '0',
             error: error.message
-        })
+        });
     }
-}
+};
 
 module.exports = funcionesDelDashboard

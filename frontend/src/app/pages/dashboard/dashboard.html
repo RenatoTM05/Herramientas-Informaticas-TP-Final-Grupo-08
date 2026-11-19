@@ -1,5 +1,11 @@
  <div class="container-fluid p-4">
-  <h1 class="text-info mb-4">📊 Dashboard Administrativo</h1>
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h1 class="text-info m-0">📊 Dashboard Administrativo</h1>
+    <button class="btn btn-info text-dark fw-bold d-flex align-items-center gap-2 px-3 py-2" (click)="abrirModalCrearJuego()">
+      <i class="bi bi-plus-circle-fill fs-5"></i>
+      <span>Crear Juego</span>
+    </button>
+  </div>
 
   <!--Tarjetas de estadísticas -->
   <div class="row g-3 mb-4">
@@ -88,10 +94,11 @@
       <div class="card bg-dark text-white">
         <div class="card-header bg-danger text-dark fw-bold">🎮 Juegos Más Buscados</div>
         <div class="card-body">
-          <div *ngFor="let juego of juegosBuscados" class="d-flex justify-content-between border-bottom py-2">
-            <span>{{ juego.resultado || 'Sin término' }}</span>
-            <span class="badge bg-info">{{ juego.cantidad }} búsquedas</span>
-          </div>
+          <canvas *ngIf="juegosBuscados.length > 0" baseChart 
+            [data]="configGraficoJuegos" 
+            [options]="opcionesJuegos"
+            type="bar">
+          </canvas>
           <div *ngIf="juegosBuscados.length === 0" class="text-center text-muted py-3">
             No hay datos de búsquedas aún
           </div>
@@ -156,12 +163,97 @@
       </div>
 
       <!-- Paginación -->
-      <div class="d-flex justify-content-between align-items-center">
-        <span>Mostrando {{ registrosAuditoria.length }} de {{ totalRegistros }}</span>
-        <div>
-          <button class="btn btn-outline-info btn-sm" [disabled]="paginaActual <= 1" (click)="paginaAnterior()">Anterior</button>
-          <span class="mx-2">Página {{ paginaActual }} de {{ totalPaginas }}</span>
-          <button class="btn btn-outline-info btn-sm" [disabled]="paginaActual >= totalPaginas" (click)="paginaSiguiente()">Siguiente</button>
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mt-3 pt-3 border-top border-secondary">
+        <div class="d-flex align-items-center gap-2 text-muted small">
+          <span>Mostrando {{ registrosAuditoria.length }} de {{ totalRegistros }} registros</span>
+          <span class="mx-1">|</span>
+          <span>Por página:</span>
+          <select class="form-select form-select-sm bg-dark text-white border-secondary w-auto" 
+                  [ngModel]="registrosPorPagina" 
+                  (ngModelChange)="cambiarRegistrosPorPagina($event)">
+            <option [value]="5">5</option>
+            <option [value]="10">10</option>
+            <option [value]="20">20</option>
+            <option [value]="50">50</option>
+          </select>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-outline-info btn-sm" [disabled]="paginaActual <= 1" (click)="irAPagina(1)" title="Primera página">
+            <i class="bi bi-chevron-double-left"></i>
+          </button>
+          <button class="btn btn-outline-info btn-sm" [disabled]="paginaActual <= 1" (click)="paginaAnterior()">
+            <i class="bi bi-chevron-left"></i> Anterior
+          </button>
+          <span class="badge bg-dark border border-info px-3 py-2 text-info">
+            Página {{ paginaActual }} de {{ totalPaginas }}
+          </span>
+          <button class="btn btn-outline-info btn-sm" [disabled]="paginaActual >= totalPaginas" (click)="paginaSiguiente()">
+            Siguiente <i class="bi bi-chevron-right"></i>
+          </button>
+          <button class="btn btn-outline-info btn-sm" [disabled]="paginaActual >= totalPaginas" (click)="irAPagina(totalPaginas)" title="Última página">
+            <i class="bi bi-chevron-double-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Crear Juego -->
+  <div *ngIf="mostrarModalCrearJuego" class="modal fade show d-block" tabindex="-1" style="background: rgba(0, 0, 0, 0.75);">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content bg-dark text-white border-info">
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title text-info"><i class="bi bi-plus-circle me-2"></i>Crear Nuevo Juego</h5>
+          <button type="button" class="btn-close btn-close-white" (click)="cerrarModalCrearJuego()"></button>
+        </div>
+        <div class="modal-body">
+          <form (ngSubmit)="guardarJuego()">
+            <div class="row g-3">
+              <div class="col-md-8">
+                <label class="form-label text-light">Título *</label>
+                <input type="text" class="form-control bg-secondary text-white border-0" [(ngModel)]="nuevoJuego.titulo" name="titulo" required placeholder="Ej: Cyberpunk 2077">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label text-light">Calificación (0 - 100)</label>
+                <input type="number" class="form-control bg-secondary text-white border-0" [(ngModel)]="nuevoJuego.calificacion" name="calificacion" min="0" max="100">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-light">Desarrolladora</label>
+                <input type="text" class="form-control bg-secondary text-white border-0" [(ngModel)]="nuevoJuego.desarrolladora" name="desarrolladora" placeholder="Ej: CD Projekt Red">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-light">Fecha de Lanzamiento</label>
+                <input type="date" class="form-control bg-secondary text-white border-0" [(ngModel)]="nuevoJuego.fecha_lanzamiento" name="fecha_lanzamiento">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-light">Géneros (separados por coma)</label>
+                <input type="text" class="form-control bg-secondary text-white border-0" [(ngModel)]="nuevoJuego.generos" name="generos" placeholder="Acción, Rol, Aventura">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label text-light">Plataformas (separadas por coma)</label>
+                <input type="text" class="form-control bg-secondary text-white border-0" [(ngModel)]="nuevoJuego.plataformas" name="plataformas" placeholder="PC, PS5, Xbox Series X">
+              </div>
+              <div class="col-md-8">
+                <label class="form-label text-light">URL Imagen Portada</label>
+                <input type="url" class="form-control bg-secondary text-white border-0" [(ngModel)]="nuevoJuego.imagen_portada" name="imagen_portada" placeholder="https://ejemplo.com/portada.jpg">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label text-light">ID Tráiler (YouTube)</label>
+                <input type="text" class="form-control bg-secondary text-white border-0" [(ngModel)]="nuevoJuego.trailer_id" name="trailer_id" placeholder="Ej: JSRtYpNRoN0">
+              </div>
+              <div class="col-12">
+                <label class="form-label text-light">Descripción</label>
+                <textarea class="form-control bg-secondary text-white border-0" rows="3" [(ngModel)]="nuevoJuego.descripcion" name="descripcion" placeholder="Descripción de la trama, características..."></textarea>
+              </div>
+            </div>
+            <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top border-secondary">
+              <button type="button" class="btn btn-outline-secondary" (click)="cerrarModalCrearJuego()" [disabled]="guardandoJuego">Cancelar</button>
+              <button type="submit" class="btn btn-info text-dark fw-bold px-4" [disabled]="guardandoJuego">
+                <span *ngIf="guardandoJuego" class="spinner-border spinner-border-sm me-1"></span>
+                Guardar Juego
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
