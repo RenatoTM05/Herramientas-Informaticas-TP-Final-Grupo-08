@@ -48,11 +48,6 @@ geminiService.validarResenaConGemini = async (texto) => {
 
     try {
         if (!process.env.GEMINI_API_KEY) {
-            // Para no bloquear el desarrollo si no hay key, aprobamos igual
-            // En produccion, esto debería lanzar un error
-            if (process.env.NODE_ENV === 'production') {
-                throw new Error("La API Key de Gemini no está configurada en el servidor.");
-            }
             console.warn("ADVERTENCIA: Moderación de contenido desactivada. No se encontró GEMINI_API_KEY.");
             return { aprobada: true, motivo: "Moderación automática desactivada (sin API Key)." };
         }

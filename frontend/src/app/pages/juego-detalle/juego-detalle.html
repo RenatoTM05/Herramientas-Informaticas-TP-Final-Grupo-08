@@ -103,12 +103,46 @@
     </section>
 
     <section class="detail-section reviews" aria-labelledby="reviews-title">
-      <h2 id="reviews-title" class="d-flex flex-wrap align-items-center gap-2">
+      <h2 id="reviews-title" class="d-flex flex-wrap align-items-center gap-2 mb-3">
         Reseñas de la comunidad
         <span class="review-count" *ngIf="!cargandoResenas && !errorResenas">{{
           totalResenas
         }}</span>
       </h2>
+
+      <!-- Formulario para agregar reseña -->
+      <div class="new-review-card mb-4" *ngIf="usuarioLogueado && !yaHizoResena">
+        <h3 class="h6 text-info mb-2"><i class="bi bi-pencil-square me-2"></i>Escribir una reseña</h3>
+        <textarea
+          class="new-review-textarea mb-2"
+          rows="3"
+          placeholder="Compartí tu opinión honesta sobre este juego..."
+          [(ngModel)]="textoNuevaResena"
+          maxlength="1000"
+        ></textarea>
+        <div class="d-flex justify-content-between align-items-center">
+          <small class="text-muted">{{ textoNuevaResena.length }} / 1000 caracteres</small>
+          <button
+            type="button"
+            class="btn btn-info btn-sm text-dark fw-bold px-3 py-1"
+            [disabled]="enviandoResena || !textoNuevaResena.trim()"
+            (click)="enviarResena()"
+          >
+            <span *ngIf="enviandoResena" class="spinner-border spinner-border-sm me-1"></span>
+            Publicar Reseña
+          </button>
+        </div>
+      </div>
+
+      <div class="alert alert-dark border border-secondary mb-4 py-2 d-flex align-items-center justify-content-between" *ngIf="!usuarioLogueado">
+        <span class="small text-muted"><i class="bi bi-info-circle me-1"></i> Iniciá sesión para publicar tu propia reseña.</span>
+        <a routerLink="/login" class="btn btn-outline-info btn-sm">Iniciar Sesión</a>
+      </div>
+
+      <div class="alert alert-dark border border-info mb-4 py-2 d-flex align-items-center" *ngIf="usuarioLogueado && yaHizoResena">
+        <i class="bi bi-check-circle-fill text-info me-2"></i>
+        <span class="small">Ya publicaste una reseña para este juego. Aparece destacada primero.</span>
+      </div>
 
       <div *ngIf="cargandoResenas" class="status" role="status">
         <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
@@ -121,10 +155,10 @@
 
       <ng-container *ngIf="!cargandoResenas && !errorResenas">
         <div *ngIf="resenas.length === 0" class="status">
-          Todavía no hay reseñas para este juego.
+          Todavía no hay reseñas para este juego. ¡Sé el primero en opinar!
         </div>
 
-        <article *ngFor="let resena of resenas" class="review">
+        <article *ngFor="let resena of resenas" class="review" [class.my-review]="miUsuarioId && resena.loginId === miUsuarioId">
           <header class="review-header">
             <span class="avatar">
               <img
@@ -135,7 +169,12 @@
               />
               <ng-template #avatarIcon><i class="bi bi-person" aria-hidden="true"></i></ng-template>
             </span>
-            <strong>{{ resena.usuario?.nombre || resena.usuario?.username || 'Usuario' }}</strong>
+            <strong>
+              {{ resena.usuario?.nombre || resena.usuario?.username || 'Usuario' }}
+              <span *ngIf="miUsuarioId && resena.loginId === miUsuarioId" class="badge bg-info text-dark ms-2 fw-bold">
+                <i class="bi bi-star-fill me-1"></i>Tu reseña
+              </span>
+            </strong>
             <small>{{ resena.createdAt | date: 'dd/MM/yyyy' }}</small>
           </header>
 
