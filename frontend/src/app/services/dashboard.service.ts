@@ -42,7 +42,7 @@ export class DashboardService {
 
   getAuditoria(pagina: number, limite: number, busqueda: string): Observable<any> {
     return this.apiDashboard.get(
-      `${this.url_dashboard}/auditoria?pagina=${pagina}&limite=${limite}&busqueda=${busqueda}`,
+      `${this.url_dashboard}/auditoria?page=${pagina}&limit=${limite}&search=${encodeURIComponent(busqueda || '')}&pagina=${pagina}&limite=${limite}&busqueda=${encodeURIComponent(busqueda || '')}`,
       { headers: this.getHeaders() }
     );
   }

@@ -13,7 +13,7 @@ export class AuthInterceptor implements HttpInterceptor{
     const token=localStorage.getItem('token'); //obtengo el token del localStorage
     if(token){ //si existe el token
       const cloned = req.clone({ //clono la peticion original pq no se puede modificar directamente
-        headers: req.headers.set('Authorization',`Bearer $(token)`) //le agrego el header Authorization
+        headers: req.headers.set('Authorization', `Bearer ${token}`) //le agrego el header Authorization
       });
       return next.handle(cloned); //continuo con la peticion ya modificada
     }

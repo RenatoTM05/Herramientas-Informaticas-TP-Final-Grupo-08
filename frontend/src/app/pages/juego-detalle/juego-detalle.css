@@ -254,3 +254,32 @@ h2 {
     width: min(55%, 12rem);
   }
 }
+
+.my-review {
+  border-color: #0dcaf0 !important;
+  background: rgba(13, 202, 240, 0.07) !important;
+  box-shadow: 0 0 12px rgba(13, 202, 240, 0.15);
+}
+
+.new-review-card {
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--surface);
+}
+
+.new-review-textarea {
+  width: 100%;
+  background: #101b2a;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  color: #fff;
+  padding: 0.75rem;
+  resize: vertical;
+  min-height: 5.5rem;
+}
+
+.new-review-textarea:focus {
+  outline: none;
+  border-color: #0dcaf0;
+}

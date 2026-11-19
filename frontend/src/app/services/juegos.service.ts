@@ -74,11 +74,20 @@ export class JuegosService {
     return this.http.get(`${this.baseUrl}/detalle/${id}`);
   }
 
+  // Crear un nuevo juego (Admin)
+  crearJuego(juego: any): Observable<any> {
+    return this.http.post(`${this.baseUrl}`, juego);
+  }
+
   // Obtener reseñas de un juego con paginación
-  obtenerResenas(juegoId: number, pagina: number = 1, limite: number = 10): Observable<any> {
-    const params = new HttpParams()
+  obtenerResenas(juegoId: number, pagina: number = 1, limite: number = 10, usuarioId?: number): Observable<any> {
+    let params = new HttpParams()
       .set('pagina', pagina)
       .set('limite', limite);
+
+    if (usuarioId) {
+      params = params.set('usuarioId', usuarioId);
+    }
 
     return this.http.get(
       `/resenas/juego/${juegoId}`,
@@ -86,4 +95,8 @@ export class JuegosService {
     );
   }
 
+  // Crear una nueva reseña
+  crearResena(datos: { juegoId: number; texto: string; loginId?: number }): Observable<any> {
+    return this.http.post('/resenas', datos);
+  }
 }

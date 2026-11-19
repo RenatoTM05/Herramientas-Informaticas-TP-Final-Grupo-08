@@ -191,4 +191,70 @@ juegoCtrl.buscarJuegos = async (req, res) => {
     }
 };
 
+// Crear juego (Administrador)
+juegoCtrl.crearJuego = async (req, res) => {
+    try {
+        const {
+            titulo,
+            descripcion,
+            imagen_portada,
+            plataformas,
+            generos,
+            trailer_id,
+            fecha_lanzamiento,
+            calificacion,
+            desarrolladora
+        } = req.body;
+
+        if (!titulo || !titulo.trim()) {
+            return res.status(400).json({
+                status: '0',
+                msg: 'El título del juego es obligatorio.'
+            });
+        }
+
+        const maxId = await Juego.max('id');
+        const nuevoId = (maxId || 0) + 1;
+
+        const plataformasArr = Array.isArray(plataformas)
+            ? plataformas
+            : (plataformas ? plataformas.split(',').map(s => s.trim()).filter(Boolean) : ['PC']);
+
+        const generosArr = Array.isArray(generos)
+            ? generos
+            : (generos ? generos.split(',').map(s => s.trim()).filter(Boolean) : ['Acción']);
+
+        const nuevoJuego = await Juego.create({
+            id: nuevoId,
+            titulo: titulo.trim(),
+            descripcion: descripcion ? descripcion.trim() : '',
+            imagen_portada: imagen_portada && imagen_portada.trim() ? imagen_portada.trim() : 'https://placehold.co/264x352/1e293b/ffffff/png?text=' + encodeURIComponent(titulo.trim()),
+            plataformas: plataformasArr,
+            generos: generosArr,
+            trailer_id: trailer_id ? trailer_id.trim() : '',
+            fecha_lanzamiento: fecha_lanzamiento ? fecha_lanzamiento.trim() : new Date().toISOString().split('T')[0],
+            calificacion: calificacion != null ? parseInt(calificacion, 10) : 80,
+            desarrolladora: desarrolladora ? desarrolladora.trim() : 'Desarrolladora Independiente',
+            capturas: [],
+            juegos_similares: [],
+            dlcs: [],
+            expansiones: [],
+            saga: { nombre: titulo.trim(), entrega: 1 }
+        });
+
+        res.status(201).json({
+            status: '1',
+            msg: 'Juego creado exitosamente.',
+            data: nuevoJuego
+        });
+    } catch (error) {
+        console.error('Error al crear juego:', error);
+        res.status(500).json({
+            status: '0',
+            msg: 'Error al crear el juego.',
+            error: error.message
+        });
+    }
+};
+
 module.exports = juegoCtrl;

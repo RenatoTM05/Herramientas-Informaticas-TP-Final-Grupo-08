@@ -168,7 +168,7 @@ SELECT
     'gamer_' || i,
 
     -- Hash bcrypt de ejemplo para la contraseña "password".
-    '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.',
+    '$2b$10$NlCt4yyJp7V8Gu6SdVNTuuOL9I3DMTEHFRltK4E9Fij1guQUaVeT6',
 
     (ARRAY[
         'Mateo', 'Sofia', 'Lucas', 'Valentina', 'Santiago',

@@ -7,16 +7,31 @@ const resenaCtrl = {};
 
 resenaCtrl.createResena = async (req, res) => {
     try {
-        // NOTA: Se saco la autentificacion para pruebas. El loginId ahora debe ir en el body
-        // Cuando se reactive la seguridad, la linea debe ser: const loginId = req.user.id;
-        const { juegoId, texto, loginId } = req.body;
+        let loginId = req.body.loginId;
 
-        // Se agrega loginId a la validación para testing
-        if (!juegoId || !texto || !loginId) {
-            return res.status(400).json({ status: '0', msg: 'Faltan datos (juegoId, texto, loginId)' });
+        // Si se envía el token en el header, obtener el ID del usuario autenticado
+        if (req.headers.authorization) {
+            try {
+                const jwt = require('jsonwebtoken');
+                const token = req.headers.authorization.split(' ')[1];
+                if (token) {
+                    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'token_pal_usuario');
+                    if (decoded && decoded.id) {
+                        loginId = decoded.id;
+                    }
+                }
+            } catch (tokenErr) {
+                console.warn('Aviso: Token no verificado en createResena:', tokenErr.message);
+            }
         }
 
-        //Validar contenido con Gemini
+        const { juegoId, texto } = req.body;
+
+        if (!juegoId || !texto || !texto.trim() || !loginId) {
+            return res.status(400).json({ status: '0', msg: 'Faltan datos requeridos (juegoId, texto o usuario no identificado).' });
+        }
+
+        // Validar contenido con Gemini
         try {
             const validacion = await geminiService.validarResenaConGemini(texto);
 
@@ -39,11 +54,21 @@ resenaCtrl.createResena = async (req, res) => {
         }
 
         const nuevaResena = await Resena.create({
-            texto,
+            texto: texto.trim(),
             juegoId,
             loginId
         });
-        res.status(201).json({ status: '1', msg: 'Reseña publicada', data: nuevaResena });
+
+        // Obtener la reseña creada con los datos del usuario para el retorno
+        const resenaConUsuario = await Resena.findByPk(nuevaResena.id, {
+            include: [{
+                model: Login,
+                as: 'usuario',
+                attributes: ['id', 'username', 'nombre', 'foto']
+            }]
+        });
+
+        res.status(201).json({ status: '1', msg: 'Reseña publicada con éxito', data: resenaConUsuario || nuevaResena });
     } catch (error) {
         console.error(error);
         res.status(500).json({ status: '0', msg: 'Error al publicar reseña', error: error.message });
@@ -58,6 +83,34 @@ resenaCtrl.getResenasByJuego = async (req, res) => {
         const limite = Math.min(Math.max(parseInt(req.query.limite) || 10, 1), 50);
         const offset = (pagina - 1) * limite;
 
+        // Detectar si hay un usuario autenticado para priorizar sus reseñas primero
+        let currentUserId = req.query.usuarioId ? parseInt(req.query.usuarioId, 10) : null;
+        if (!currentUserId && req.headers.authorization) {
+            try {
+                const jwt = require('jsonwebtoken');
+                const token = req.headers.authorization.split(' ')[1];
+                if (token) {
+                    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'token_pal_usuario');
+                    if (decoded && decoded.id) {
+                        currentUserId = decoded.id;
+                    }
+                }
+            } catch (tokenErr) {}
+        }
+
+        const { Sequelize } = require('sequelize');
+        const orderClausula = [];
+
+        if (currentUserId && !isNaN(currentUserId)) {
+            // Reseñas del usuario conectado primero
+            orderClausula.push([
+                Sequelize.literal(`CASE WHEN "Resena"."loginId" = ${currentUserId} THEN 0 ELSE 1 END`),
+                'ASC'
+            ]);
+        }
+        orderClausula.push(['likes', 'DESC']);
+        orderClausula.push(['createdAt', 'DESC']);
+
         const { count, rows } = await Resena.findAndCountAll({
             where: { juegoId },
             attributes: ['id', 'juegoId', 'loginId', 'texto', 'likes', 'createdAt'],
@@ -68,10 +121,7 @@ resenaCtrl.getResenasByJuego = async (req, res) => {
                     attributes: ['id', 'username', 'nombre', 'foto']
                 }
             ],
-            order: [
-                ['likes', 'DESC'],
-                ['createdAt', 'DESC']
-            ],
+            order: orderClausula,
             limit: limite,
             offset: offset
         });
