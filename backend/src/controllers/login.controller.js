@@ -90,7 +90,7 @@ funcionesLogin.loginUsuario= async(req,res) =>{
         if(!compararContras){
             return res.status(404).json({
                 status:'0',
-                msg:'contraseña incorrecta pa'
+                msg:'Contraseña incorrecta'
             })
         }else{
             await AccesoModal.create({
