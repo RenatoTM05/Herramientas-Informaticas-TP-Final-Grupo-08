@@ -18,10 +18,10 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.4,
       "position": [
-        -368,
-        -128
+        0,
+        0
       ],
-      "id": "27a519b9-ee37-49c9-9716-1f537ab1524d",
+      "id": "7d264b20-e6ef-4ec3-ab77-613f92af055e",
       "name": "Schedule Trigger"
     },
     {
@@ -31,16 +31,16 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -96,
-        -128
+        272,
+        0
       ],
-      "id": "9885af85-a823-490e-b34b-1940a4614171",
+      "id": "69c651a2-be03-4297-914a-a96463997a00",
       "name": "Recolectar Metricas"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=TU_GEMINI_API_KEY",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=TU_APY_KEY",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -58,23 +58,23 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        160,
-        -128
+        528,
+        0
       ],
-      "id": "134b4bad-0799-44ce-8a6d-0ce1e2f0795d",
+      "id": "3e44da80-f9a4-4ca9-a232-a62063b146c5",
       "name": "Consultar Gemini AI"
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst fecha = $('Recolectar Metricas').item.json.fecha;\n\n// Extraer el texto generado por Gemini\nlet reportMarkdown = \"# Informe Ejecutivo de Rendimiento no disponible\";\ntry {\n  reportMarkdown = response.candidates[0].content.parts[0].text;\n} catch (e) {\n  reportMarkdown = `# Error al generar reporte con IA\\n\\nNo se pudo extraer el texto de Gemini: ${e.message}`;\n}\n\nconst filename = `reporte_rendimiento_${fecha}.md`;\n\nreturn [{\n  json: {\n    filename,\n    reportContent: reportMarkdown,\n    tamanoChars: reportMarkdown.length\n  }\n}];"
+        "jsCode": "const response = $input.first().json;\nconst fecha = $('Recolectar Metricas').item.json.fecha;\n\n// Extraer el texto generado por Gemini\nlet reportMarkdown = \"# Informe Ejecutivo de Rendimiento no disponible\";\ntry {\n  reportMarkdown = response.candidates[0].content.parts[0].text;\n} catch (e) {\n  reportMarkdown = `# Error al generar reporte con IA\\n\\nNo se pudo extraer el texto de Gemini: ${e.message}`;\n}\n\n// Extraer hora y minutos actuales (ej: 23-05) para que el nombre sea único\nconst now = new Date();\nconst hora = String(now.getHours()).padStart(2, '0') + '-' + String(now.getMinutes()).padStart(2, '0');\n\n// Nombre dinámico con fecha y hora para evitar que Nextcloud bloquee el archivo\nconst filename = `reporte_rendimiento_${fecha}_${hora}.md`;\n\nreturn [{\n  json: {\n    filename,\n    reportContent: reportMarkdown,\n    tamanoChars: reportMarkdown.length\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        416,
-        -128
+        784,
+        0
       ],
-      "id": "4c3585fb-a8d7-45c0-b30a-bd97157b4a7a",
+      "id": "90167722-8c72-4c81-ab3f-5d0fade082fe",
       "name": "Formatear Archivo Markdown"
     },
     {
@@ -101,15 +101,15 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        672,
-        -128
+        1040,
+        0
       ],
-      "id": "ae78324d-6709-45c8-997f-a636c37d7765",
+      "id": "dc55e54c-a71f-4fc1-9344-0fc0d325287c",
       "name": "Subir a Nextcloud",
       "credentials": {
         "httpBasicAuth": {
-          "id": "hgkegwZtuIx7tfVN",
-          "name": "nextCloud"
+          "id": "zNT6NoiCBs5EJnny",
+          "name": "Unnamed credential"
         }
       }
     }
@@ -166,11 +166,11 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "5fbe9154-f0f5-4eb5-ae77-b8e2045ec52d",
+  "versionId": "f66e93b9-a86d-4abe-b649-13d3fc5a7cd9",
   "meta": {
     "instanceId": "d97227288da2c44f9a4221c964745c4478896119a880f4200f33e89f3fdb1464"
   },
   "nodeGroups": [],
-  "id": "yt3zLj5e2M9bMS76",
+  "id": "KmbIPER9plKiiDYe",
   "tags": []
 }
