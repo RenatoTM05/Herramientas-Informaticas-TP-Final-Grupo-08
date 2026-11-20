@@ -104,3 +104,14 @@ Nextcloud Root/
 4. **Jerarquía de Carpetas:** `docs/images/hu17/04_nextcloud_folder_hierarchy.png`
 5. **Permisos de Compartición:** `docs/images/hu17/05_nextcloud_folder_permissions_rbac.png`
 6. **Archivos Centralizados:** `docs/images/hu17/06_nextcloud_files_uploaded.png`
+
+## 6. Comandos
+
+1. Limpiar el esquema previo y dar permisos
+docker exec -i gamer_nextcloud_db psql -U nextcloud_user -d nextcloud_db -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO nextcloud_user; GRANT ALL ON SCHEMA public TO oc_admin;"
+
+2. Restaurar el backup inicial con toda la configuración y RBAC
+Get-Content nextcloud/backup/nextcloud_inicial.sql | docker exec -i gamer_nextcloud_db psql -U nextcloud_user -d nextcloud_db
+
+3. Otorgar permisos finales a las tablas y secuencias restauradas
+docker exec -i gamer_nextcloud_db psql -U nextcloud_user -d nextcloud_db -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO oc_admin; GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO oc_admin;"

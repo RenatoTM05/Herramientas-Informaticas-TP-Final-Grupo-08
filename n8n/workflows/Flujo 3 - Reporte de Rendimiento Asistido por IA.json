@@ -21,12 +21,12 @@
         0,
         0
       ],
-      "id": "7d264b20-e6ef-4ec3-ab77-613f92af055e",
+      "id": "e4380b20-feed-4933-ac69-bf54f75db346",
       "name": "Schedule Trigger"
     },
     {
       "parameters": {
-        "jsCode": "const promUrl = 'http://prometheus:9090/api/v1/query';\n\n// Consultas PromQL clave del entorno\nconst queries = {\n  cpuUsagePct: '100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)',\n  ramUsagePct: '(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100',\n  postgresConnections: 'pg_stat_activity_count',\n  activeContainers: 'count(container_last_seen{name=~\"gamer_.*|glpi.*|nextcloud.*\"})'\n};\n\nconst metrics = {};\n\nfor (const [key, q] of Object.entries(queries)) {\n  try {\n    const res = await fetch(`${promUrl}?query=${encodeURIComponent(q)}`);\n    const data = await res.json();\n    if (data.status === 'success' && data.data.result.length > 0) {\n      const val = parseFloat(data.data.result[0].value[1]);\n      metrics[key] = isNaN(val) ? 0 : parseFloat(val.toFixed(2));\n    } else {\n      metrics[key] = \"Sin datos\";\n    }\n  } catch (err) {\n    metrics[key] = \"Error de consulta\";\n  }\n}\n\nconst fecha = new Date().toISOString().split('T')[0];\n\n// Armar el prompt para la IA\nconst prompt = `Actúa como un SysAdmin Senior de Infraestructura y DevOps.\nAnaliza las siguientes métricas de telemetría extraídas de Prometheus para la plataforma \"Red Social Gamer\":\n\n- Utilización promedio de CPU (Host): ${metrics.cpuUsagePct}%\n- Utilización de Memoria RAM: ${metrics.ramUsagePct}%\n- Conexiones concurrentes a PostgreSQL: ${metrics.postgresConnections}\n- Contenedores Docker activos monitoreados: ${metrics.activeContainers}\n\nGenera un INFORME EJECUTIVO DE RENDIMIENTO en formato Markdown profesional que incluya:\n1. Resumen Ejecutivo del estado de salud de la plataforma.\n2. Diagnóstico de Capacidad y potenciales cuellos de botella.\n3. Recomendaciones de optimización preventiva (Base de Datos, Memoria y Contenedores).\n4. Conclusión y semáforo de estado (Verde / Amarillo / Rojo).\n\nFecha del informe: ${fecha}. Formato Markdown limpio sin rodeos.`;\n\nreturn [{\n  json: {\n    fecha,\n    metrics,\n    prompt\n  }\n}];"
+        "jsCode": "const promUrl = 'http://prometheus:9090/api/v1/query';\n\n// Consultas PromQL optimizadas para n8n\nconst queries = {\n  cpuUsagePct: '100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)',\n  ramUsagePct: '(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100',\n  postgresConnections: 'sum(pg_stat_activity_count)',\n  activeContainers: 'count(container_last_seen)'\n};\n\nconst metrics = {};\n\nfor (const [key, q] of Object.entries(queries)) {\n  try {\n    // Usar el cliente HTTP oficial y nativo de n8n en nodos Code\n    const data = await this.helpers.httpRequest({\n      method: 'GET',\n      url: `${promUrl}?query=${encodeURIComponent(q)}`,\n      json: true\n    });\n\n    if (data && data.status === 'success' && data.data && data.data.result && data.data.result.length > 0) {\n      const val = parseFloat(data.data.result[0].value[1]);\n      metrics[key] = isNaN(val) ? 0 : parseFloat(val.toFixed(2));\n    } else {\n      metrics[key] = 0;\n    }\n  } catch (err) {\n    metrics[key] = 0;\n  }\n}\n\nconst fecha = new Date().toISOString().split('T')[0];\n\n// Armar el prompt enriquecido con las métricas reales\nconst prompt = `Actúa como un SysAdmin Senior de Infraestructura y DevOps.\nAnaliza las siguientes métricas de telemetría extraídas de Prometheus para la plataforma \"Red Social Gamer\":\n\n- Utilización promedio de CPU (Host): ${metrics.cpuUsagePct}%\n- Utilización de Memoria RAM: ${metrics.ramUsagePct}%\n- Conexiones concurrentes a PostgreSQL: ${metrics.postgresConnections}\n- Contenedores Docker activos monitoreados: ${metrics.activeContainers}\n\nGenera un INFORME EJECUTIVO DE RENDIMIENTO en formato Markdown profesional que incluya:\n1. Resumen Ejecutivo del estado de salud de la plataforma.\n2. Diagnóstico de Capacidad y potenciales cuellos de botella.\n3. Recomendaciones de optimización preventiva (Base de Datos, Memoria y Contenedores).\n4. Conclusión y semáforo de estado (Verde / Amarillo / Rojo).\n\nFecha del informe: ${fecha}. Formato Markdown limpio sin rodeos.`;\n\nreturn [{\n  json: {\n    fecha,\n    metrics,\n    prompt\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -34,7 +34,7 @@
         272,
         0
       ],
-      "id": "69c651a2-be03-4297-914a-a96463997a00",
+      "id": "765d1637-35af-4308-b354-440d04cc4ffe",
       "name": "Recolectar Metricas"
     },
     {
@@ -61,7 +61,7 @@
         528,
         0
       ],
-      "id": "3e44da80-f9a4-4ca9-a232-a62063b146c5",
+      "id": "41391411-e9e4-4122-9d62-698d2e06c8f6",
       "name": "Consultar Gemini AI"
     },
     {
@@ -74,7 +74,7 @@
         784,
         0
       ],
-      "id": "90167722-8c72-4c81-ab3f-5d0fade082fe",
+      "id": "bdc001a8-72fe-4828-ac6c-50c396b3a0e5",
       "name": "Formatear Archivo Markdown"
     },
     {
@@ -104,11 +104,11 @@
         1040,
         0
       ],
-      "id": "dc55e54c-a71f-4fc1-9344-0fc0d325287c",
+      "id": "aa0c42d2-290e-409d-8141-74e70c21d91d",
       "name": "Subir a Nextcloud",
       "credentials": {
         "httpBasicAuth": {
-          "id": "zNT6NoiCBs5EJnny",
+          "id": "3LD8bfhLaMEH5pV6",
           "name": "Unnamed credential"
         }
       }
@@ -166,11 +166,11 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "f66e93b9-a86d-4abe-b649-13d3fc5a7cd9",
+  "versionId": "7704733f-570a-4514-b5ba-fc5c67809228",
   "meta": {
     "instanceId": "d97227288da2c44f9a4221c964745c4478896119a880f4200f33e89f3fdb1464"
   },
   "nodeGroups": [],
-  "id": "KmbIPER9plKiiDYe",
+  "id": "qFa2LSpy2IXrxh9N",
   "tags": []
 }
