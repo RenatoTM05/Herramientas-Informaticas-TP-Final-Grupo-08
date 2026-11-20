@@ -527,25 +527,11 @@ El checksum detecta cambios en el archivo respecto del manifiesto. La restauraci
 | Base y HAProxy en un solo host | El failover probado recupera el servicio ante un fallo de nodo. Un fallo del host o proxy afecta todo el recorrido. | Distribuir nodos entre diferentes dominios de fallo, dar redundancia al ingreso SQL y probar pérdida de red y de quórum. Evaluar un operador de PostgreSQL sobre Kubernetes solo si el entorno exige esa orquestación. |
 | Respaldo lógico local | Réplicas y backups comparten dominio de fallo. Los tiempos de laboratorio dependen del host y del dataset. | Copia cifrada fuera del host, por ejemplo en un almacenamiento de objetos con retención inmutable, y pruebas periódicas de restauración y recuperación. |
 | Volumen de datos y consulta Q6 | Una sola tabla supera seis millones. La agregación global recorrió el conjunto completo y empeoró en el ensayo. | Acreditar alcance del dataset con la cátedra y dimensionar las tablas aplicables. Medir la misma carga tras rediseñar Q6. |
-| Entrega y verificación de cambios | El README de arranque sigue describiendo el esquema anterior, la rama predeterminada está en el commit inicial y CI carece de despliegue real. | Publicar la versión de entrega desde la rama acordada, alinear el README con el capítulo 4 y configurar despliegue, SHA verificable, prueba funcional y rollback. |
+| Entrega y verificación de cambios | El README de arranque ya está actualizado para describir la aplicación y sus instrucciones de ejecución. La rama predeterminada está en el commit inicial y CI carece de despliegue real. | Publicar la versión de entrega desde la rama acordada y configurar despliegue, SHA verificable, prueba funcional y rollback. |
 | Frontend y rutas públicas | La suite real falla al compilar tres pruebas. Nginx reenvía `/juego` a la API y Angular también registra `/juego/:id` como página. Esto puede afectar el acceso directo o la recarga. | Restaurar la ejecución de pruebas en CI, separar rutas de página y de API y verificar navegación y recarga por URL pública. Completar el módulo de pagos solo si pasa a formar parte del alcance acordado. |
 | Perímetro y cadena de suministro | Los puertos publicados dependen del firewall. Hay etiquetas flotantes, hallazgos de auditoría pendientes y defaults de laboratorio que deben endurecerse. | Registrar firewall efectivo, eliminar defaults inseguros, rotar credenciales expuestas y fijar imágenes o acciones. Para otro entorno, evaluar un gestor de secretos como Vault y límites de tasa o WAF según el modelo de amenazas. |
 | Integraciones y cuotas externas | OAuth, catálogo externo e IA dependen de disponibilidad, credenciales y límites de proveedores. Los flujos requieren activación, credenciales y pruebas. | Verificar cuotas y alarmas, gestionar identidades con mínimo privilegio, endurecer webhooks y centralizar ejecuciones y errores. |
 | Cobertura de monitoreo y evidencia operativa | El tablero actual carece de prueba HTTP externa, panel de reinicios y seguimiento de consultas lentas. | Agregar sonda y paneles correspondientes, consolidar evidencia de red externa y repetir la prueba de alertas en el entorno final. |
-
-### Defensa oral
-
-La cátedra prevé aproximadamente **20 minutos**, una demostración en vivo con la aplicación accesible desde Internet y evaluación individual con nota mínima **7**. La defensa debe permitir que los cinco integrantes expliquen sus aportes, las decisiones y el funcionamiento del recorrido completo. Se propone este guion, sujeto a los responsables del tablero del equipo.
-
-| Tiempo | Demostración | Evidencia de referencia |
-|---|---|---|
-| 3 min | Abrir Funnel desde red externa, recorrer portada, catálogo, filtro y detalle. Mostrar aplicación, frontera Nginx/API y Compose. | Capítulos 1, 2, 4, 5 y 10. |
-| 4 min | Consultar conteos y tamaño en pgAdmin, mostrar comparación Q1/Q6 y explicar costos y alcance de la prueba. | Capítulos 6 y 7. |
-| 5 min | Mostrar el líder, simular caída del primario en el entorno de demostración, observar promoción y recuperar el endpoint. Explicar respaldo y verificación de restauración aislada. | Capítulos 8 y 15. |
-| 4 min | Mostrar el SHA en Actions, el tablero y una alerta controlada. Rastrear su ticket GLPI y un reporte en Nextcloud. | Capítulos 9, 11, 12 y 13. |
-| 4 min | Explicar riesgos y controles, mostrar evidencias y terminar con límites técnicos y decisiones pendientes. | Capítulos 14 y 16 y matriz de entregables. |
-
-Reservar el host y la URL de defensa, comprobar los servicios y las credenciales antes de exponer y disponer de capturas, tiempos y registros de cada prueba. La sesión de defensa y sus resultados constituyen evidencia posterior.
 
 ## Matriz de entregables de la cátedra
 
@@ -555,7 +541,7 @@ La numeración de esta matriz corresponde a las **15 etapas del enunciado**, mie
 |---|---|---|
 | 1. Selección y diagnóstico | Descripción, funcionalidades y diagnóstico/plan en el capítulo 1. Diagrama inicial en el 2. Inventario del stack en el 3. | Documentados, con enlace al diagnóstico original. |
 | 2. Gestión Scrum | Proyecto en Jira o equivalente, Product Backlog, plan de sprints, responsables, criterios de aceptación y seguimiento. El `context.md` local reúne seis sprints, historias y criterios. La trazabilidad Git se indica debajo de esta matriz. | Backlog y plan disponibles en el entorno local. Queda por aportar el tablero o exportación, asignaciones, fechas, estados, evidencias de reuniones y decisiones. |
-| 3. Control de versiones | Repositorio público, historial, ramas, PR y revisiones, README inicial. Ver trazabilidad debajo de la matriz y capítulo 9. | Git público, historial, ramas, README y PR comprobados. Revisiones formales de los PR consultados y verificación de ausencia de secretos y datos personales en todo el historial/dumps requieren evidencia adicional. |
+| 3. Control de versiones | Repositorio público, historial, ramas, PR y revisiones, README actualizado. Ver trazabilidad debajo de la matriz y capítulo 9. | Git público, historial, ramas, README y PR comprobados. Revisiones formales de los PR consultados y verificación de ausencia de secretos y datos personales en todo el historial/dumps requieren evidencia adicional. |
 | 4. Base y servicios auxiliares | Dockerfiles y Compose (4 y 5), esquema, seed y evidencia de volumen (6), pgAdmin (4 y 6), backup y restauración (15). | Configuración, conteos, tamaño medido y restauración histórica respaldados. Seis millones en `resenas`. Alcance del dataset por tabla y evidencia final de pgAdmin y persistencia por verificar. |
 | 5. Optimización SQL | Consultas originales y optimizadas, planes antes y después, índices justificados, mediciones e informe en el capítulo 7. | Comparación documentada. Ocho mejoras y una regresión entre nueve consultas medidas. |
 | 6. Clúster y replicación | Diagrama, configuraciones de nodos, evidencia de replicación, prueba de fallo y recuperación, y consistencia y limitaciones en el capítulo 8. | Ensayo del 15/11 documentado para pérdida de un primario y reincorporación. |
@@ -567,7 +553,7 @@ La numeración de esta matriz corresponde a las **15 etapas del enunciado**, mie
 | 12. Nextcloud | Estructura documental, permisos, informes y evidencias centralizadas en capítulo 12. | Estructura y capturas disponibles. Verificar acceso con perfiles autorizados y registrar versión final publicada, permisos y SHA. |
 | 13. n8n | Configuración, diagramas de flujos, evidencias de ejecución, registro de errores, pruebas de integración y análisis de riesgos en capítulo 13. | Tres flujos exportados y diagramados. Faltan capturas o registros trazables de ejecución y fallos en la instancia de entrega, además de la autenticación del webhook. |
 | 14. Seguridad | Matriz, informe de vulnerabilidades, escaneo y corrección, pruebas, configuración de controles, respuesta y recuperación, y flujo de incidentes n8n en capítulos 10 y 13 a 15. | Auditoría y pruebas de sanitización registradas, con remediación, reescaneo, controles externos y ejercicio integral de seguridad por acreditar. |
-| 15. Informe y defensa | Los 16 capítulos están en este archivo. El capítulo 16 contiene el guion de 20 minutos y la matriz referencia manuales y pruebas. | Informe técnico consolidado. Quedan registro de publicación final en Nextcloud, acceso externo en vivo y realización de la defensa individual. |
+| 15. Informe y defensa | Los 16 capítulos técnicos están en este archivo y la matriz referencia manuales y pruebas. | Informe técnico consolidado. Quedan registro de publicación final en Nextcloud, acceso externo en vivo y realización de la defensa individual. |
 
 ### Trazabilidad de la entrega
 
@@ -594,4 +580,4 @@ Las cuentas que abrieron los PR permiten identificar aportes para la defensa. La
 
 Para la entrega, identificar el SHA de la aplicación accesible, la rama de integración y el enlace al tablero actualizado. El `context.md` local está excluido por Git. Las asignaciones de roles de GLPI y Nextcloud describen permisos y responsabilidades operativas.
 
-[Repositorio público](https://github.com/RenatoTM05/Herramientas-Informaticas-TP-Final-Grupo-08) · [Commits de integración](https://github.com/RenatoTM05/Herramientas-Informaticas-TP-Final-Grupo-08/commits/develop/) · [Pull requests](https://github.com/RenatoTM05/Herramientas-Informaticas-TP-Final-Grupo-08/pulls?q=is%3Apr) · [README inicial](README.md) · [Política local de exclusión de archivos](.gitignore)
+[Repositorio público](https://github.com/RenatoTM05/Herramientas-Informaticas-TP-Final-Grupo-08) · [Commits de integración](https://github.com/RenatoTM05/Herramientas-Informaticas-TP-Final-Grupo-08/commits/develop/) · [Pull requests](https://github.com/RenatoTM05/Herramientas-Informaticas-TP-Final-Grupo-08/pulls?q=is%3Apr) · [README actualizado](README.md) · [Política local de exclusión de archivos](.gitignore)
