@@ -1,0 +1,471 @@
+{
+  "name": "Flujo 4 - Failover Patroni a GLPI y RAG Nextcloud",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "failover-patroni",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        -640,
+        0
+      ],
+      "id": "f4010001-1111-4000-8000-000000000001",
+      "name": "Webhook Failover Patroni",
+      "webhookId": "f4c8a210-7b3d-4e9f-9a12-8d5c6e3b1f04"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const fs = require('fs');\n\nconst input = $input.first().json;\nconst body = input.body || input;\nconst alerts = Array.isArray(body.alerts) ? body.alerts : [];\nconst alert = alerts[0] || {};\nconst labels = alert.labels || body.commonLabels || {};\nconst annotations = alert.annotations || body.commonAnnotations || {};\n\nconst status = String(alert.status || body.status || 'firing').toLowerCase();\nconst alertName = labels.alertname || 'PatroniMasterFailover';\nconst cluster = labels.cluster || 'gamer-postgres';\nconst nowIso = new Date().toISOString();\n\n// 1. Solo procesar alertas en estado firing (descartar resolved)\nif (status !== 'firing') {\n  return [{\n    json: {\n      capture: false,\n      reason: `Alerta ignorada porque su estado es '${status}' (solo se procesa 'firing').`,\n      alertName,\n      status,\n      timestamp: nowIso\n    }\n  }];\n}\n\n// 2. Enriquecer con estado real del clúster (Patroni REST API + Prometheus)\nlet promotedNode = labels.name || 'Desconocido';\nlet fallenNode = 'Desconocido';\nlet timeline = 'N/A';\nlet clusterMembers = [];\n\nconst patroniNodes = ['pg-node-1', 'pg-node-2', 'pg-node-3'];\nfor (const node of patroniNodes) {\n  try {\n    const data = await this.helpers.httpRequest({\n      method: 'GET',\n      url: `http://${node}:8008/cluster`,\n      json: true,\n      timeout: 3000\n    });\n    if (data && Array.isArray(data.members) && data.members.length > 0) {\n      clusterMembers = data.members;\n      const leader = data.members.find(m => m.role === 'leader' || m.role === 'master');\n      if (leader) {\n        promotedNode = leader.name || promotedNode;\n        if (leader.timeline !== undefined) timeline = String(leader.timeline);\n      }\n      const aliveNames = new Set(data.members.map(m => m.name));\n      const missing = patroniNodes.filter(n => !aliveNames.has(n));\n      if (missing.length > 0) {\n        fallenNode = missing.join(', ');\n      }\n      break;\n    }\n  } catch (e) {\n    // El nodo puede estar caído, continuar con el siguiente\n  }\n}\n\n// Si el nodo caído ya se reincorporó, consultarlo en Prometheus (quién estuvo down o quién era primario hace 3m)\nif (fallenNode === 'Desconocido') {\n  try {\n    const promRes = await this.helpers.httpRequest({\n      method: 'GET',\n      url: 'http://prometheus:9090/api/v1/query?query=' + encodeURIComponent('min_over_time(up{job=\"patroni-cluster\"}[5m]) == 0'),\n      json: true,\n      timeout: 3000\n    });\n    const results = promRes?.data?.result || [];\n    if (results.length > 0) {\n      fallenNode = results.map(r => (r.metric.instance || '').split(':')[0]).filter(Boolean).join(', ');\n    }\n  } catch (e) {}\n}\n\nif (fallenNode === 'Desconocido') {\n  try {\n    const promPrev = await this.helpers.httpRequest({\n      method: 'GET',\n      url: 'http://prometheus:9090/api/v1/query?query=' + encodeURIComponent('max_over_time(patroni_primary{cluster=\"gamer-postgres\"}[5m]) == 1'),\n      json: true,\n      timeout: 3000\n    });\n    const prevLeaders = (promPrev?.data?.result || [])\n      .map(r => r.metric.name)\n      .filter(n => n && n !== promotedNode);\n    if (prevLeaders.length > 0) {\n      fallenNode = prevLeaders.join(', ');\n    }\n  } catch (e) {}\n}\n\n// 3. Candado atómico (O_CREAT | O_EXCL): CAPTURAR SOLAMENTE EL 1ER EVENTO\nconst lockPath = '/home/node/.n8n/failover_evento_1.lock';\nlet fd = null;\ntry {\n  fd = fs.openSync(lockPath, 'wx');\n  const lockPayload = {\n    eventNumber: 1,\n    capturedAt: nowIso,\n    alertName,\n    cluster,\n    fallenNode,\n    promotedNode,\n    timeline\n  };\n  fs.writeFileSync(fd, JSON.stringify(lockPayload, null, 2), 'utf8');\n  fs.closeSync(fd);\n} catch (err) {\n  if (fd !== null) {\n    try { fs.closeSync(fd); } catch (_) {}\n  }\n  if (err && err.code === 'EEXIST') {\n    let previousEvent = {};\n    try {\n      previousEvent = JSON.parse(fs.readFileSync(lockPath, 'utf8'));\n    } catch (_) {}\n    return [{\n      json: {\n        capture: false,\n        eventIgnored: true,\n        reason: 'Ya se capturó el 1er evento de failover. Los eventos posteriores (2do, 3ro, 4to, etc.) o duplicados se descartan.',\n        firstEvent: previousEvent,\n        discardedAt: nowIso\n      }\n    }];\n  }\n  throw err;\n}\n\n// 4. Formatear resumen del clúster y datos del ticket GLPI (solo para el 1er evento)\nconst clusterSummary = clusterMembers.length > 0\n  ? clusterMembers.map(m => `- ${m.name}: rol=${m.role}, estado=${m.state}, timeline=${m.timeline}`).join('\\n')\n  : 'No se pudo consultar la lista completa de miembros de Patroni.';\n\nconst summary = annotations.summary || `Failover Patroni: caída de ${fallenNode} y promoción de ${promotedNode} a maestro`;\nconst description = annotations.description || `Se detectó la caída del nodo maestro (${fallenNode}) en el clúster ${cluster} y la promoción automática del nodo esclavo ${promotedNode} a maestro (timeline ${timeline}).`;\n\nconst ticketTitle = `[CRÍTICO - EVENTO #1] Failover Patroni: caída de ${fallenNode} y promoción de ${promotedNode}`;\nconst ticketContent = [\n  '<b>Reporte automático único (1er evento de failover capturado por n8n)</b><br><br>',\n  `<b>Evento:</b> Caída de nodo maestro y promoción de nodo esclavo a maestro<br>`,\n  `<b>Alerta Prometheus:</b> ${alertName}<br>`,\n  `<b>Clúster:</b> ${cluster}<br>`,\n  `<b>Nodo maestro caído:</b> ${fallenNode}<br>`,\n  `<b>Nodo esclavo promovido a maestro:</b> ${promotedNode}<br>`,\n  `<b>Timeline actual:</b> ${timeline}<br>`,\n  `<b>Severidad:</b> ${labels.severity || 'critical'}<br>`,\n  `<b>Detalle:</b> ${description}<br>`,\n  `<b>Estado actual del clúster:</b><br><pre>${clusterSummary}</pre>`,\n  `<b>Fecha/Hora (UTC):</b> ${nowIso}<br><br>`,\n  '<i>Nota: Se iniciará automáticamente el proceso RAG sobre la documentación en Nextcloud para generar e insertar el archivo solucion_1.md.</i>'\n].join('');\n\nconst ragQuery = `Failover automático PostgreSQL Patroni caída de nodo maestro ${fallenNode} promoción de nodo esclavo ${promotedNode} a maestro líder etcd HAProxy pg_rewind recuperación reincorporación patronictl`;\n\nreturn [{\n  json: {\n    capture: true,\n    eventNumber: 1,\n    alertName,\n    cluster,\n    fallenNode,\n    promotedNode,\n    timeline,\n    clusterSummary,\n    severity: labels.severity || 'critical',\n    urgency: 5,\n    status,\n    summary,\n    description,\n    ticketTitle,\n    ticketContent,\n    ragQuery,\n    timestamp: nowIso\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        0
+      ],
+      "id": "f4010002-1111-4000-8000-000000000002",
+      "name": "Filtrar 1er Evento y Enriquecer"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "cond-primer-evento-01",
+              "leftValue": "={{ $json.capture }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        -160,
+        0
+      ],
+      "id": "f4010003-1111-4000-8000-000000000003",
+      "name": "Es el 1er Evento?"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        80,
+        180
+      ],
+      "id": "f4010004-1111-4000-8000-000000000004",
+      "name": "Evento Descartado"
+    },
+    {
+      "parameters": {
+        "url": "http://glpi-app/apirest.php/initSession",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        80,
+        -80
+      ],
+      "id": "f4010005-1111-4000-8000-000000000005",
+      "name": "GLPI - Iniciar Sesion",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "EbKdhNASal5ce7A7",
+          "name": "glpi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://glpi-app/apirest.php/Ticket",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Session-Token",
+              "value": "={{ $('GLPI - Iniciar Sesion').first().json.session_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    input: {\n      name: $('Filtrar 1er Evento y Enriquecer').first().json.ticketTitle,\n      content: $('Filtrar 1er Evento y Enriquecer').first().json.ticketContent,\n      urgency: $('Filtrar 1er Evento y Enriquecer').first().json.urgency,\n      type: 1\n    }\n  })\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        300,
+        -80
+      ],
+      "id": "f4010006-1111-4000-8000-000000000006",
+      "name": "GLPI - Crear Ticket Failover"
+    },
+    {
+      "parameters": {
+        "url": "http://glpi-app/apirest.php/killSession",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Session-Token",
+              "value": "={{ $('GLPI - Iniciar Sesion').first().json.session_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        520,
+        -80
+      ],
+      "id": "f4010007-1111-4000-8000-000000000007",
+      "name": "GLPI - Cerrar Sesion"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://nextcloud/ocs/v2.php/search/providers/files/search?term=.md&limit=50&format=json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "OCS-APIRequest",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        740,
+        -80
+      ],
+      "id": "f4010008-1111-4000-8000-000000000008",
+      "name": "Nextcloud - Buscar Archivos",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "MWf5Rt67SWzMC2Jl",
+          "name": "nextcloud"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const resp = $input.first().json;\nconst entries = resp?.ocs?.data?.entries || [];\n\n// Excluir carpetas demo de Nextcloud y archivos de solución previos\nconst excludedPrefixes = ['/Templates/', '/Photos/', '/Documents/'];\nconst excludedNames = new Set(['Readme.md', 'Templates credits.md', 'solucion_1.md']);\n\nconst docs = [];\nfor (const entry of entries) {\n  const filePath = entry?.attributes?.path;\n  const title = entry?.title || '';\n  if (!filePath || !filePath.toLowerCase().endsWith('.md')) continue;\n  if (excludedPrefixes.some(p => filePath.startsWith(p))) continue;\n  if (excludedNames.has(title)) continue;\n  if (title.toLowerCase().startsWith('solucion_')) continue;\n\n  const encodedPath = filePath\n    .split('/')\n    .map(seg => encodeURIComponent(seg))\n    .join('/');\n\n  docs.push({\n    json: {\n      title,\n      path: filePath,\n      folder: entry.subline || '',\n      fileId: entry?.attributes?.fileId || '',\n      webdavUrl: `http://nextcloud/remote.php/dav/files/admin_nextcloud${encodedPath}`\n    }\n  });\n}\n\nif (docs.length === 0) {\n  throw new Error('No se encontraron archivos Markdown del proyecto en Nextcloud para aplicar RAG.');\n}\n\nreturn docs;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -80
+      ],
+      "id": "f4010009-1111-4000-8000-000000000009",
+      "name": "Filtrar Documentos Nextcloud"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.webdavUrl }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1180,
+        -80
+      ],
+      "id": "f4010010-1111-4000-8000-000000000010",
+      "name": "Nextcloud - Descargar Archivos",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "MWf5Rt67SWzMC2Jl",
+          "name": "nextcloud"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const GEMINI_API_KEY = 'TU_API_KEY';\nconst EMBED_MODELS = ['models/gemini-embedding-001', 'models/gemini-embedding-2'];\n\nconst downloadedItems = $input.all();\nconst docMetaItems = $('Filtrar Documentos Nextcloud').all();\nconst eventData = $('Filtrar 1er Evento y Enriquecer').first().json;\nconst glpiResp = $('GLPI - Crear Ticket Failover').first().json || {};\nconst glpiTicketId = glpiResp.id || 'N/A';\n\n// 1. Chunking con solapamiento preservando fuente de Nextcloud\nfunction splitIntoChunks(text, source, title, maxChars = 1500, overlap = 200) {\n  const clean = String(text || '').replace(/\\r\\n/g, '\\n').trim();\n  if (!clean) return [];\n  const chunks = [];\n  let start = 0;\n  let idx = 0;\n  while (start < clean.length) {\n    let end = Math.min(start + maxChars, clean.length);\n    if (end < clean.length) {\n      const breakPos = clean.lastIndexOf('\\n\\n', end);\n      if (breakPos > start + Math.floor(maxChars * 0.5)) {\n        end = breakPos;\n      } else {\n        const nlPos = clean.lastIndexOf('\\n', end);\n        if (nlPos > start + Math.floor(maxChars * 0.5)) end = nlPos;\n      }\n    }\n    const slice = clean.slice(start, end).trim();\n    if (slice.length > 40) {\n      chunks.push({ source, title, chunkIndex: idx++, text: slice });\n    }\n    if (end >= clean.length) break;\n    start = Math.max(end - overlap, start + 1);\n  }\n  return chunks;\n}\n\nconst allChunks = [];\nlet loadedDocs = 0;\nfor (let i = 0; i < downloadedItems.length; i++) {\n  const raw = downloadedItems[i]?.json?.data;\n  const meta = docMetaItems[i]?.json || {};\n  if (typeof raw === 'string' && raw.trim().length > 0) {\n    loadedDocs++;\n    const chunks = splitIntoChunks(raw, meta.path || `doc_${i}`, meta.title || `doc_${i}`);\n    allChunks.push(...chunks);\n  }\n}\n\nif (allChunks.length === 0) {\n  throw new Error('No se pudo extraer contenido de texto de los archivos descargados de Nextcloud.');\n}\n\n// 2. Etapa 1 RAG Híbrido: Pre-ranking léxico (BM25 simplificado) sobre todos los chunks para seleccionar Top-15 candidatos\nfunction tokenize(str) {\n  return String(str || '')\n    .toLowerCase()\n    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/[^a-z0-9_\\-]+/g, ' ')\n    .split(/\\s+/)\n    .filter(w => w.length >= 2);\n}\n\nconst queryTokens = tokenize(eventData.ragQuery);\nconst docFreq = new Map();\nconst chunkTokensList = allChunks.map(c => {\n  const toks = tokenize(`${c.source} ${c.title} ${c.text}`);\n  const unique = new Set(toks);\n  for (const t of unique) docFreq.set(t, (docFreq.get(t) || 0) + 1);\n  return toks;\n});\nconst avgLen = chunkTokensList.reduce((acc, t) => acc + t.length, 0) / Math.max(1, chunkTokensList.length);\nconst N = allChunks.length;\n\nconst bm25Scored = allChunks.map((chunk, i) => {\n  const toks = chunkTokensList[i];\n  const tfMap = new Map();\n  for (const t of toks) tfMap.set(t, (tfMap.get(t) || 0) + 1);\n  let score = 0;\n  const k1 = 1.5, b = 0.75;\n  for (const qt of queryTokens) {\n    const tf = tfMap.get(qt) || 0;\n    if (!tf) continue;\n    const df = docFreq.get(qt) || 0;\n    const idf = Math.log(1 + (N - df + 0.5) / (df + 0.5));\n    score += idf * ((tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (toks.length / avgLen))));\n  }\n  return { ...chunk, bm25: score };\n});\n\nbm25Scored.sort((a, b) => b.bm25 - a.bm25);\nconst CANDIDATE_K = Math.min(15, bm25Scored.length);\nconst candidates = bm25Scored.slice(0, CANDIDATE_K);\nconst maxBm25 = Math.max(1e-9, ...candidates.map(c => c.bm25));\n\n// 3. Etapa 2 RAG Híbrido: Embeddings vectoriales densos con Gemini + Similitud Coseno\nfunction cosineSimilarity(a, b) {\n  if (!a.length || a.length !== b.length) return 0;\n  let dot = 0, normA = 0, normB = 0;\n  for (let i = 0; i < a.length; i++) {\n    dot += a[i] * b[i];\n    normA += a[i] * a[i];\n    normB += b[i] * b[i];\n  }\n  const denom = Math.sqrt(normA) * Math.sqrt(normB);\n  return denom === 0 ? 0 : dot / denom;\n}\n\nlet usedEmbedModel = 'bm25-fallback';\nlet ranked = null;\n\nfor (const modelName of EMBED_MODELS) {\n  try {\n    const batchResp = await this.helpers.httpRequest({\n      method: 'POST',\n      url: `https://generativelanguage.googleapis.com/v1beta/${modelName}:batchEmbedContents?key=${GEMINI_API_KEY}`,\n      headers: { 'Content-Type': 'application/json' },\n      body: {\n        requests: [\n          { model: modelName, content: { parts: [{ text: eventData.ragQuery }] } },\n          ...candidates.map(c => ({\n            model: modelName,\n            content: { parts: [{ text: `Documento: ${c.source}\\n\\n${c.text}` }] }\n          }))\n        ]\n      },\n      json: true\n    });\n    const embs = batchResp?.embeddings || [];\n    if (embs.length === candidates.length + 1) {\n      const queryVec = embs[0].values || [];\n      usedEmbedModel = modelName;\n      ranked = candidates.map((c, idx) => {\n        const cos = cosineSimilarity(queryVec, embs[idx + 1].values || []);\n        const bm25Norm = c.bm25 / maxBm25;\n        return { ...c, cosine: cos, score: 0.75 * cos + 0.25 * bm25Norm };\n      });\n      ranked.sort((a, b) => b.score - a.score);\n      break;\n    }\n  } catch (err) {\n    // Si un modelo da 429/cuota, intenta el siguiente modelo automáticamente\n  }\n}\n\nif (!ranked) {\n  ranked = candidates.map(c => ({ ...c, cosine: 0, score: c.bm25 / maxBm25 }));\n}\n\nconst TOP_K = Math.min(6, ranked.length);\nconst topChunks = ranked.slice(0, TOP_K);\n\nconst retrievedContext = topChunks.map((c, idx) =>\n  `### Fragmento ${idx + 1} | Archivo Nextcloud: ${c.source} | Relevancia RAG: ${(c.score * 100).toFixed(1)}% (coseno: ${(c.cosine * 100).toFixed(1)}%)\\n${c.text}`\n).join('\\n\\n---\\n\\n');\n\nconst topSourcesSummary = topChunks.map(c =>\n  `- \\`${c.source}\\` (chunk #${c.chunkIndex + 1}, relevancia ${(c.score * 100).toFixed(1)}%, coseno ${(c.cosine * 100).toFixed(1)}%)`\n).join('\\n');\n\n// 4. Construir prompt RAG aumentado con la documentación recuperada de Nextcloud\nconst prompt = `Actúa como un Ingeniero Senior de Confiabilidad de Sitios (SRE) y Administrador de Bases de Datos PostgreSQL/Patroni.\n\nSe produjo el PRIMER evento de failover automático en la plataforma \"Red Social Gamer\" y ya fue reportado en GLPI.\nDebes generar el documento oficial \"Solución 1\" en formato Markdown limpio y profesional, basándote EXCLUSIVAMENTE en los datos reales del incidente y en los fragmentos de documentación recuperados mediante RAG desde Nextcloud.\n\n## Datos reales del Incidente (Evento #1)\n- Ticket GLPI creado: #${glpiTicketId}\n- Alerta Prometheus: ${eventData.alertName}\n- Clúster afectado: ${eventData.cluster}\n- Nodo maestro caído: ${eventData.fallenNode}\n- Nodo esclavo promovido a maestro (Leader): ${eventData.promotedNode}\n- Timeline actual de PostgreSQL: ${eventData.timeline}\n- Fecha/Hora del evento (UTC): ${eventData.timestamp}\n- Estado observado del clúster:\n${eventData.clusterSummary}\n\n## Contexto Documental Recuperado por RAG desde Nextcloud (Top ${TOP_K} fragmentos más relevantes)\n${retrievedContext}\n\n## Estructura obligatoria del documento \"Solución 1\" (Markdown)\n1. **Título**: \\`# Solución 1 — Recuperación ante Caída de Nodo Maestro y Promoción de Esclavo (${eventData.cluster})\\`\n2. **Resumen del Incidente (Evento #1)**: Datos del nodo maestro caído (${eventData.fallenNode}), nodo esclavo promovido (${eventData.promotedNode}), timeline (${eventData.timeline}), y referencia al Ticket GLPI #${glpiTicketId}.\n3. **Análisis Técnico del Failover**: Explicación basada en la documentación recuperada (rol de Patroni, bloqueo de liderazgo en etcd, enrutamiento de HAProxy por \\`/primary\\`, replicación síncrona y comportamiento del backend Express).\n4. **Procedimiento Paso a Paso de Solución y Reincorporación**: Comandos exactos adaptados a los nodos reales del incidente (${eventData.fallenNode} y ${eventData.promotedNode}): verificación con \\`patronictl\\`, revisión de logs/estado, arranque del nodo caído con \\`docker compose start ${eventData.fallenNode}\\`, validación de \\`pg_rewind\\` y reincorporación como réplica en streaming, contingencia con \\`patronictl reinit\\` si hubiese divergencia, y validación de lectura/escritura por HAProxy y API.\n5. **Verificación Post-Recuperación y Checklist de Cierre de Ticket GLPI #${glpiTicketId}**.\n6. **Fuentes Documentales de Nextcloud Utilizadas (RAG)**: Listado de los documentos recuperados.\n\nNo inventes procedimientos que contradigan la documentación recuperada. Responde directamente con el contenido Markdown listo para guardar como \\`solucion_1.md\\`.`;\n\nreturn [{\n  json: {\n    prompt,\n    glpiTicketId,\n    fallenNode: eventData.fallenNode,\n    promotedNode: eventData.promotedNode,\n    timeline: eventData.timeline,\n    timestamp: eventData.timestamp,\n    totalDocs: loadedDocs,\n    totalChunks: allChunks.length,\n    candidatesEmbedded: candidates.length,\n    embedModel: usedEmbedModel,\n    topK: topChunks.length,\n    topSourcesSummary\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        -80
+      ],
+      "id": "f4010011-1111-4000-8000-000000000011",
+      "name": "RAG - Embeddings y Busqueda Semantica"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=TU_API_KEY",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    contents: [\n      {\n        parts: [\n          {\n            text: $('RAG - Embeddings y Busqueda Semantica').first().json.prompt\n          }\n        ]\n      }\n    ]\n  })\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1620,
+        -80
+      ],
+      "id": "f4010012-1111-4000-8000-000000000012",
+      "name": "Gemini AI - Generar Solucion 1"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const response = $input.first().json;\nconst ragMeta = $('RAG - Embeddings y Busqueda Semantica').first().json;\n\nlet solutionMarkdown = '';\ntry {\n  solutionMarkdown = response.candidates[0].content.parts[0].text;\n} catch (e) {\n  solutionMarkdown = `# Solución 1 — Error al generar con Gemini AI\\n\\nDetalle: ${e.message}`;\n}\n\nconst footer = [\n  '',\n  '---',\n  '## Trazabilidad del Flujo Automatizado (n8n + RAG)',\n  `- **Evento capturado:** #1 (único evento procesado; eventos 2do, 3ro, 4to+ bloqueados)`,\n  `- **Ticket GLPI:** #${ragMeta.glpiTicketId}`,\n  `- **Nodo maestro caído:** \\`${ragMeta.fallenNode}\\``,\n  `- **Nodo esclavo promovido:** \\`${ragMeta.promotedNode}\\``,\n  `- **Timeline:** ${ragMeta.timeline}`,\n  `- **Documentos analizados en Nextcloud:** ${ragMeta.totalDocs} archivos (${ragMeta.totalChunks} chunks totales, Top-${ragMeta.candidatesEmbedded} vectorizados con \\`${ragMeta.embedModel}\\`)`,\n  `- **Top-${ragMeta.topK} fragmentos recuperados por similitud coseno:**`,\n  ragMeta.topSourcesSummary,\n  `- **Generado el (UTC):** ${new Date().toISOString()}`\n].join('\\n');\n\nconst fullContent = `${solutionMarkdown.trim()}\\n${footer}\\n`;\n\nreturn [{\n  json: {\n    filename: 'solucion_1.md',\n    solutionContent: fullContent,\n    glpiTicketId: ragMeta.glpiTicketId,\n    tamanoChars: fullContent.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        -80
+      ],
+      "id": "f4010013-1111-4000-8000-000000000013",
+      "name": "Formatear Solucion 1"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=http://nextcloud/remote.php/dav/files/admin_nextcloud/{{ $json.filename }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "text/markdown; charset=utf-8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/plain",
+        "body": "={{ $json.solutionContent }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2060,
+        -80
+      ],
+      "id": "f4010014-1111-4000-8000-000000000014",
+      "name": "Nextcloud - Subir Solucion 1",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "MWf5Rt67SWzMC2Jl",
+          "name": "nextcloud"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Failover Patroni": {
+      "main": [
+        [
+          {
+            "node": "Filtrar 1er Evento y Enriquecer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar 1er Evento y Enriquecer": {
+      "main": [
+        [
+          {
+            "node": "Es el 1er Evento?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Es el 1er Evento?": {
+      "main": [
+        [
+          {
+            "node": "GLPI - Iniciar Sesion",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Evento Descartado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GLPI - Iniciar Sesion": {
+      "main": [
+        [
+          {
+            "node": "GLPI - Crear Ticket Failover",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GLPI - Crear Ticket Failover": {
+      "main": [
+        [
+          {
+            "node": "GLPI - Cerrar Sesion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GLPI - Cerrar Sesion": {
+      "main": [
+        [
+          {
+            "node": "Nextcloud - Buscar Archivos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nextcloud - Buscar Archivos": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Documentos Nextcloud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Documentos Nextcloud": {
+      "main": [
+        [
+          {
+            "node": "Nextcloud - Descargar Archivos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nextcloud - Descargar Archivos": {
+      "main": [
+        [
+          {
+            "node": "RAG - Embeddings y Busqueda Semantica",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG - Embeddings y Busqueda Semantica": {
+      "main": [
+        [
+          {
+            "node": "Gemini AI - Generar Solucion 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini AI - Generar Solucion 1": {
+      "main": [
+        [
+          {
+            "node": "Formatear Solucion 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Solucion 1": {
+      "main": [
+        [
+          {
+            "node": "Nextcloud - Subir Solucion 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "tags": []
+}

@@ -50,6 +50,16 @@ groups:
 
   - name: database_patroni_alerts
     rules:
+      - alert: PatroniMasterFailover
+        expr: (patroni_primary{cluster="gamer-postgres"} == 1 and on(name) (min_over_time(patroni_primary{cluster="gamer-postgres"}[3m]) == 0)) and on(cluster) (count by (cluster) (min_over_time(up{job="patroni-cluster"}[3m]) == 0) >= 1)
+        for: 0s
+        labels:
+          severity: critical
+          event_type: master_failover
+        annotations:
+          summary: "Failover Patroni: caída de nodo maestro y promoción de {{ $labels.name }} a maestro"
+          description: "Se detectó la caída de un nodo maestro en el clúster {{ $labels.cluster }} y la promoción automática del nodo esclavo {{ $labels.name }} al rol de maestro (Leader)."
+
       - alert: PatroniNoLeader
         expr: sum(patroni_primary{cluster="gamer-postgres"}) == 0
         for: 15s
