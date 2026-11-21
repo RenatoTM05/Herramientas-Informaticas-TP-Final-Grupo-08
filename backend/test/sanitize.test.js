@@ -53,7 +53,7 @@ describe('sanitizeInput middleware', () => {
     it('debe recortar espacios en blanco al inicio y al final de un string del body', () => {
       const req = buildReq({ body: { titulo: '  Halo Infinite  ' } });
       runMiddleware(req);
-      assert.equal(req.body.titulo, 'Halo roto');
+      assert.equal(req.body.titulo, 'Halo Infinite');
     });
 
     it('debe preservar texto limpio sin modificarlo', () => {
